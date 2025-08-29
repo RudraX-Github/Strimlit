@@ -1,3 +1,4 @@
+--only-binary=Pillow
 streamlit==1.33.0
 torch==2.8.0
 torchvision==0.23.0
