@@ -76,7 +76,11 @@ def load_label_map(model_name):
 
 # Display image and run prediction
 if image is not None:
-    st.image(image, caption="Selected Image", use_container_width=True)
+    try:
+        st.image(image, caption="Selected Image", use_column_width=True)
+    except TypeError as e:
+        st.warning(f"⚠️ Image display failed: {e}")
+
     st.write(f"🧪 Debug: Image type is `{type(image)}`")
 
     if predict_button:
