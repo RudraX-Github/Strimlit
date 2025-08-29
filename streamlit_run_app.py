@@ -29,11 +29,17 @@ image = None
 if input_method == "Upload from device":
     uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
     if uploaded_file:
-        image = Image.open(uploaded_file).convert("RGB")
+        try:
+            image = Image.open(uploaded_file).convert("RGB")
+        except Exception as e:
+            st.warning(f"⚠️ Failed to load uploaded image: {e}")
 elif input_method == "Capture with camera":
     camera_image = st.camera_input("Take a photo")
     if camera_image:
-        image = Image.open(io.BytesIO(camera_image.getvalue())).convert("RGB")
+        try:
+            image = Image.open(io.BytesIO(camera_image.getvalue())).convert("RGB")
+        except Exception as e:
+            st.warning(f"⚠️ Failed to process camera image: {e}")
 
 # Predict button
 predict_button = st.button("🔍 Predict")
@@ -69,39 +75,45 @@ def load_label_map(model_name):
         return {}
 
 # Display image and run prediction
-if image:
+if image is not None:
     st.image(image, caption="Selected Image", use_container_width=True)
+    st.write(f"🧪 Debug: Image type is `{type(image)}`")
 
     if predict_button:
         with st.spinner("Classifying..."):
-            # Preprocessing
-            transform = transforms.Compose([
-                transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-            ])
-            input_tensor = transform(image).unsqueeze(0)
+            try:
+                # Preprocessing
+                transform = transforms.Compose([
+                    transforms.Resize((224, 224)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                ])
+                input_tensor = transform(image).unsqueeze(0)
 
-            # Choose model name
-            model_name = "convnext_large.in1k" if model_choice == "ImageNet-1k" else "convnext_large.fb_in22k"
+                # Choose model name
+                model_name = "convnext_large.in1k" if model_choice == "ImageNet-1k" else "convnext_large.fb_in22k"
 
-            # Load model and labels
-            model = load_model(model_name)
-            label_map = load_label_map(model_name)
+                # Load model and labels
+                model = load_model(model_name)
+                label_map = load_label_map(model_name)
 
-            # Inference
-            with torch.no_grad():
-                output = model(input_tensor)
-                probs = F.softmax(output, dim=1)[0]
-                top5 = torch.topk(probs, k=5)
+                # Inference
+                with torch.no_grad():
+                    output = model(input_tensor)
+                    probs = F.softmax(output, dim=1)[0]
+                    top5 = torch.topk(probs, k=5)
 
-            # Display top-5 predictions
-            st.subheader("🔝 Top 5 Predictions")
-            for i in range(5):
-                idx = top5.indices[i].item()
-                score = top5.values[i].item()
-                label = label_map.get(str(idx), f"Class {idx}")
-                st.write(f"**{i+1}. {label}** — Confidence: `{score:.2%}`")
+                # Display top-5 predictions
+                st.subheader("🔝 Top 5 Predictions")
+                for i in range(5):
+                    idx = top5.indices[i].item()
+                    score = top5.values[i].item()
+                    label = label_map.get(str(idx), f"Class {idx}")
+                    st.write(f"**{i+1}. {label}** — Confidence: `{score:.2%}`")
 
-            # Show most confident prediction
-            result_placeholder.success(f"✅ Most Likely: {label_map.get(str(top5.indices[0].item()), 'Unknown')}")
+                # Show most confident prediction
+                result_placeholder.success(f"✅ Most Likely: {label_map.get(str(top5.indices[0].item()), 'Unknown')}")
+            except Exception as e:
+                st.error(f"❌ Prediction failed: {e}")
+else:
+    st.warning("⚠️ No image selected or failed to load. Please upload or capture an image to proceed.")
