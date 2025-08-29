@@ -41,12 +41,19 @@ predict_button = st.button("🔍 Predict")
 # Placeholder for result
 result_placeholder = st.empty()
 
-# Cache model loading
+# Cache model loading using torch.load
 @st.cache_resource
 def load_model(model_name):
-    model = timm.create_model(model_name, pretrained=True)
-    model.eval()
-    return model
+    model = timm.create_model(model_name, pretrained=False)
+    checkpoint_path = "convnext_large_in1k.pth" if "in1k" in model_name else "convnext_large_fb_in22k.pth"
+    try:
+        state_dict = torch.load(checkpoint_path, map_location=torch.device("cpu"))
+        model.load_state_dict(state_dict)
+        model.eval()
+        return model
+    except Exception as e:
+        st.error(f"❌ Failed to load model checkpoint: {e}")
+        st.stop()
 
 # Cache label map loading
 @st.cache_resource
