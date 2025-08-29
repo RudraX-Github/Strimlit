@@ -1,4 +1,6 @@
 streamlit==1.33.0
 torch==2.8.0
 torchvision==0.23.0
-Pillow==10.2.0
+Pillow==10.1.0
+setuptools==68.2.2
+wheel==0.42.0
