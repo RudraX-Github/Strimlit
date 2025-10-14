@@ -1,0 +1,150 @@
+NLP Application Suite - Complete Version History
+=======================================================
+
+v7.3 (Final)
+-----------
+* Bug Fix: Corrected a transformers TrainingArguments conflict that caused the fine-tuning process to crash when load_best_model_at_end was enabled without an evaluation set.
+* Bug Fix: Fixed a critical flaw in the PRO mode analysis pipeline where sentiment and emotion detection were failing due to an incorrect contextual analysis method.
+* UI Fix: Permanently resolved the issue where text on buttons, radio buttons, and dropdown menus would become invisible on hover by correcting the ttk style map configuration.
+* UI Fix: Re-engineered the main analysis screen layout to correctly place the dropdown menu above a smaller text box, ensuring all widgets are always visible and functional.
+
+=======================================================
+
+v7.2 (Final)
+-----------
+* Bug Fix: Resolved a TclError: Layout Custom.TLabelFrame not found crash by correctly defining and applying custom styles for ttk widgets, ensuring the application starts reliably.
+
+=======================================================
+
+v7.1 (Final)
+-----------
+* UI Overhaul: Introduced the final "Arcade" theme, a high-contrast, neon-on-dark interface for an expert-level, visually appealing experience.
+* Bug Fix: Corrected layout management issues that caused the UI to appear compressed and not fill the entire window.
+
+=======================================================
+
+v6.4
+-----------
+* Performance Fix: Re-engineered the spelling correction algorithm to be significantly more efficient, preventing the application from freezing on large texts.
+* UX Improvement: Split the spelling correction process into "Identifying Misspelled Words" and "Applying Corrections" to provide more granular feedback on the progress bar.
+
+=======================================================
+
+v6.3
+-----------
+* UI Overhaul: Implemented a "Windows 11" inspired theme with a modern, clean aesthetic, rounded corners, and a professional color palette.
+* UX Improvement: Added a confirmation screen after the text preprocessing step is complete, requiring the user to click "Continue" to proceed.
+* Code Cleanup: Removed the detailed version history from the main script's docstring for a cleaner presentation.
+
+=======================================================
+
+v6.2
+-----------
+* Bug Fix: Corrected a UI workflow issue where the corpus loading process was split into two disconnected steps, causing a "File not found" error. The process was streamlined into a single "Browse & Load" action.
+
+=======================================================
+
+v6.1
+-----------
+* Bug Fix: Resolved an issue where the application would hang when loading a CSV file by ensuring the column selection dialog runs on the main UI thread.
+* Refactor: Re-architected the preprocess_corpus function into a more robust and efficient NLP pipeline.
+
+=======================================================
+
+v6.0
+-----------
+* UI Layout: Reconfigured the main window to feature a fixed-width control panel on the left and an expandable output log on the right.
+* Bug Fix: Corrected a widget packing issue that caused the action dropdown menu and "Analyze" button to be hidden on the main analysis screen.
+
+=======================================================
+
+v5.0
+-----------
+* Feature: Added an advanced preprocessing suite with options for removing HTML/URLs, expanding chat slang, performing spelling correction, and handling emojis.
+* UI Overhaul: Major redesign, including moving the interaction panel and restyling buttons.
+* Dependency: Integrated the pyspellchecker library.
+
+=======================================================
+
+v4.0
+-----------
+* Feature: Introduced an interactive preprocessing step allowing users to select cleaning options.
+* Feature: Added the ability to choose between 'distilgpt2' and 'gpt2' for fine-tuning.
+* Feature: Implemented robust long-training support by saving model checkpoints after each epoch.
+* UI Overhaul: Implemented the "Cyber Glow" dynamic dark theme.
+
+=======================================================
+
+v3.0
+-----------
+* Refinement: Changed the "gensim not found" warning to an informational message to clarify that it's an optional fallback.
+
+=======================================================
+
+v2.9
+-----------
+* Feature: Added a startup sound on Windows.
+* Bug Fix: Corrected the Gensim import statement to ensure the Word2Vec fallback model would load if needed.
+
+=======================================================
+
+v2.8
+-----------
+* Refinement: Enhanced the fine-tuning logic with a more robust token-based chunking method.
+* UI/UX: Added more interactive steps for PRO mode (re-training, epoch selection).
+* UI/UX: Improved aesthetics with a welcome screen and icons.
+
+=======================================================
+
+v2.7
+-----------
+* Feature: Added a "Home" button for easier navigation.
+* UI Overhaul: Redesigned the GUI with a resizable paned window.
+* Refactor: Re-architected the application flow to be non-blocking.
+
+=======================================================
+
+v2.6
+-----------
+* Feature: Word Clouds now generate in non-blocking, separate windows.
+* UI/UX: The main GUI window is configured to always open in the front.
+* UI/UX: Implemented the "Solarized Light" color theme.
+
+=======================================================
+
+v2.5
+-----------
+* Next Word Prediction (PRO):
+    -   Increased the number of training epochs from 3 to 5 to improve the fine-tuned model's prediction quality.
+
+=======================================================
+
+v2.4
+-----------
+* Emotion Analysis (Correction):
+    -   Replaced the unavailable 'e-manuel/...' model with a new, robust, and publicly accessible model: 'j-hartmann/emotion-english-distilroberta-base'.
+
+=======================================================
+
+v2.3
+-----------
+* Fine-Tuning Process (PRO):
+    -   Added an interactive prompt when a previously saved model is found, allowing users to choose to use the existing model or re-train.
+
+=======================================================
+
+v2.2
+-----------
+* Emotion Analysis (Correction):
+    -   Fixed a case-sensitive typo in the model name, changing it from 'Emanuel/...' to 'e-manuel/bert-base-uncased-emotion'.
+
+=======================================================
+
+v2.1
+-----------
+* Next Word Prediction (PRO):
+    -   Increased fine-tuning training epochs from 1 to 3 and limited output to the top 3 predictions.
+* Emotion Analysis (PRO):
+    -   Upgraded the base model for improved accuracy.
+* Word Cloud Generation:
+    -   Made the feature interactive, allowing users to choose between the corpus, user input, or both.

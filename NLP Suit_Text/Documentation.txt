@@ -1,0 +1,160 @@
+NLP Application Suite PRO - Full Documentation
+1. Introduction
+The NLP Application Suite PRO is a comprehensive, desktop-based toolkit designed for a wide range of Natural Language Processing (NLP) tasks. It provides a user-friendly graphical interface (GUI) for text analysis, generation, and summarization. The suite operates in two modes: a Light mode for quick, standard analysis using pre-trained models, and a PRO mode that empowers users to fine-tune state-of-the-art language models on their own custom text corpora.
+
+This document serves as a complete guide covering the application's features, system requirements, user workflow, and technical architecture.
+
+2. Features
+The suite is built around a set of core NLP functionalities, with enhanced capabilities in PRO mode.
+
+2.1. Core NLP Tasks (Available in both modes)
+✍️ Predict Next Word (Text Generation): Given a seed text, the application uses a causal language model (like GPT-2) to predict and generate subsequent text.
+
+😊 Analyze Sentiment: Classifies a given text into POSITIVE, NEGATIVE, or NEUTRAL sentiment categories, providing a confidence score.
+
+🎭 Detect Emotion: Analyzes text to identify the predominant emotion, such as joy, sadness, anger, fear, or surprise, along with a confidence score.
+
+📄 Summarize Long Text: For texts exceeding 30 words, this feature generates a concise, abstractive summary.
+
+☁️ Create Word Cloud: Generates and displays a visual representation of word frequency in a separate, non-blocking window. Words are color-coded based on their sentiment.
+
+2.2. PRO Mode Exclusive Features
+PRO mode is designed for users who need to adapt the NLP models to a specific domain or writing style.
+
+Corpus-Aware Model Fine-Tuning: The core feature of PRO mode. Users can upload their own text corpus (from .txt, .csv, or images via OCR) to fine-tune a new language model. This new model will learn the vocabulary, style, and context of the provided corpus, leading to more domain-specific and accurate text generation.
+
+Selectable Base Models: You can choose between two powerful base models for fine-tuning:
+
+distilgpt2: A smaller, faster version of GPT-2, ideal for quick training and good performance.
+
+gpt2: The standard, more robust version of GPT-2, which may yield better results with longer training.
+
+Interactive Preprocessing Pipeline: Before training, you are guided through a comprehensive text cleaning and preprocessing workflow with the following selectable options:
+
+Remove HTML Tags & URLs
+
+Expand Chat Slang (e.g., "lol" -> "laughing out loud")
+
+Convert Text to Lowercase
+
+Handle Emojis (Convert to text, Remove, or Ignore)
+
+Perform Spelling Correction
+
+Remove Punctuation
+
+Remove Stopwords
+
+Apply Lemmatization
+
+Robust, Long-Duration Training: The fine-tuning process is designed to handle long training sessions. It automatically saves a model checkpoint after each epoch, ensuring that progress is not lost in case of an interruption.
+
+3. System Requirements & Installation
+This application is built with Python and requires several external libraries.
+
+3.1. Dependencies
+Python: 3.8+
+
+Core NLP:
+
+torch (PyTorch)
+
+transformers
+
+datasets
+
+nltk
+
+Preprocessing & Utilities:
+
+pandas (for CSV handling)
+
+beautifulsoup4 (for HTML cleaning)
+
+pyspellchecker
+
+emoji
+
+GUI & Visualization:
+
+tkinter (usually included with Python)
+
+Pillow (PIL)
+
+wordcloud
+
+matplotlib
+
+System & Other:
+
+pytesseract (and a local Tesseract-OCR installation for image-to-text)
+
+keyboard
+
+gensim (for optional fallback model)
+
+winsound (on Windows, for sound effects)
+
+3.2. Installation Command
+You can install all necessary Python packages using pip:
+
+pip install torch transformers datasets nltk pandas beautifulsoup4 pyspellchecker emoji Pillow wordcloud matplotlib pytesseract keyboard gensim
+
+Note: You must also have Google's Tesseract-OCR engine installed and accessible in your system's PATH for the image-to-text functionality to work.
+
+4. User Guide: Step-by-Step Workflow
+Step 1: Welcome & Mode Selection
+Upon launching the application, you are greeted with a welcome screen.
+
+Click "🚀 Get Started".
+
+You will be prompted to choose a suite:
+
+Light: For quick analysis with standard, pre-trained models.
+
+PRO: To load a corpus and fine-tune a custom model.
+
+Step 2: PRO Mode - Corpus Loading
+If you select PRO mode, you will be prompted to load your corpus.
+
+Click the "📁 Browse & Load Corpus..." button.
+
+A file dialog will open. Select a supported file (.txt, .csv, .png, .jpg).
+
+If you select a CSV file, you will be presented with a dropdown menu to choose the column that contains the text data. Confirm your selection to proceed.
+
+Step 3: PRO Mode - Text Preprocessing
+After loading the corpus, the preprocessing screen appears.
+
+Select the desired text cleaning options by checking the boxes.
+
+Choose how to handle emojis using the radio buttons.
+
+Click "✨ Apply & Continue". A progress bar will show the status of the cleaning process.
+
+Once complete, a confirmation screen will appear. Click "▶ Continue to Model Selection".
+
+Step 4: PRO Mode - Model Selection & Training
+Select Base Model: Choose between distilgpt2 and gpt2.
+
+Existing Model (Optional): If a previously fine-tuned model of the selected type is found, you will be asked whether to use it or re-train.
+
+Select Training Depth: Choose from "Express (3 epochs)", "Standard (10 epochs)", or "Expert (20 epochs)". Training will begin automatically. A progress bar will display the training status and ETA.
+
+Step 5: Main Analysis Interface
+Once the models are loaded (in either Light or PRO mode), you will arrive at the main screen.
+
+Choose an Action: Select the desired NLP task from the dropdown menu at the top. The "Summarize" option will only appear if you enter more than 30 words.
+
+Enter Text: Type or paste the text you wish to analyze into the text box.
+
+Analyze: Click the "🔎 Analyze" button.
+
+View Output: The results of the analysis will be printed in the "Output Log" on the right.
+
+5. Architecture Overview
+Backend: The core logic is written in Python. It leverages the Hugging Face transformers library for accessing and training state-of-the-art models and PyTorch as the deep learning framework. NLTK and other libraries are used for the preprocessing pipeline.
+
+Frontend: The graphical user interface is built using Python's native tkinter library, with the ttk extension for modern widget styling. The application features a custom-built "Arcade" theme for a professional and visually appealing experience.
+
+Concurrency: The application uses Python's threading module to run long-duration tasks (like model loading, preprocessing, and training) in the background. This ensures the UI remains responsive and does not freeze. A queue is used for safe communication between the background threads and the main UI thread.
