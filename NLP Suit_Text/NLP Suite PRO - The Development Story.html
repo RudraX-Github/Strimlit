@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NLP Suite PRO - The Development Story</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <!-- Prism.js for code highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet" />
+
+    <style>
+        /* Base styling */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #0d0d2b;
+            color: #e0e0e0;
+        }
+
+        /* Glassmorphism Card Effect */
+        .glass-card {
+            background: rgba(29, 29, 46, 0.6);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(0, 247, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            box-shadow: 0 0 25px rgba(0, 247, 255, 0.2);
+        }
+
+        /* Text Glow Effects */
+        .text-glow-cyan {
+            text-shadow: 0 0 8px rgba(0, 247, 255, 0.8), 0 0 12px rgba(0, 247, 255, 0.6);
+        }
+        .text-glow-pink {
+            text-shadow: 0 0 8px rgba(255, 7, 169, 0.8), 0 0 12px rgba(255, 7, 169, 0.6);
+        }
+
+        /* Styling for the <details> accordion */
+        details > summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            background-color: rgba(29, 29, 46, 0.8);
+            border: 1px solid rgba(0, 247, 255, 0.2);
+            transition: background-color 0.3s ease;
+        }
+        details > summary:hover {
+            background-color: rgba(29, 29, 46, 1);
+        }
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+        details[open] > summary {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            border-color: rgba(0, 247, 255, 0.4);
+        }
+        details > div {
+            padding: 1.5rem;
+            background: rgba(10, 5, 30, 0.6);
+            border: 1px solid rgba(0, 247, 255, 0.4);
+            border-top: none;
+            border-bottom-left-radius: 0.75rem;
+            border-bottom-right-radius: 0.75rem;
+        }
+        
+        /* Custom Prism.js background */
+        pre[class*="language-"] {
+            background: rgba(10, 5, 30, 0.9) !important;
+            border: 1px solid rgba(0, 247, 255, 0.2);
+            border-radius: 0.75rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-50 glass-card">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="text-2xl font-bold text-white">NLP Suite <span class="text-cyan-400 text-glow-cyan">PRO</span></div>
+            <div class="hidden md:flex space-x-6">
+                <a href="#features" class="hover:text-cyan-400 transition-colors">Features</a>
+                <a href="#pro-mode" class="hover:text-cyan-400 transition-colors">PRO vs. Light</a>
+                <a href="#architecture" class="hover:text-cyan-400 transition-colors">Architecture</a>
+                <a href="#journey" class="hover:text-cyan-400 transition-colors">Journey</a>
+                <a href="#bugs" class="hover:text-cyan-400 transition-colors">Bug Fixes</a>
+                <a href="#code" class="hover:text-cyan-400 transition-colors">Code</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-16">
+
+        <!-- Hero Section -->
+        <section class="text-center my-16">
+            <h1 class="text-5xl md:text-7xl font-black tracking-tight text-white uppercase">
+                The Development Story
+            </h1>
+            <p class="mt-4 text-xl md:text-2xl text-cyan-400 text-glow-cyan font-semibold">NLP Application Suite PRO</p>
+            <p class="mt-6 text-lg text-gray-400 max-w-3xl mx-auto">
+                A complete technical deep-dive into the project's evolution: from a simple script to a robust, expert-level NLP toolkit. This page details all features, the architecture, the development journey, and the critical bugs resolved along the way.
+            </p>
+        </section>
+
+        <!-- Section: Features & Functions -->
+        <section id="features" class="my-24">
+            <h2 class="text-4xl font-bold text-center mb-12">
+                Core <span class="text-pink-500 text-glow-pink">Functions</span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Data sourced from Documentation.txt -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="text-4xl mb-4">✍️</div>
+                    <h3 class="text-xl font-bold mb-2">Text Generation</h3>
+                    <p class="text-gray-400">Uses a causal language model (like GPT-2) to predict and generate subsequent text from a seed phrase.</p>
+                </div>
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="text-4xl mb-4">😊</div>
+                    <h3 class="text-xl font-bold mb-2">Sentiment Analysis</h3>
+                    <p class="text-gray-400">Classifies text into POSITIVE, NEGATIVE, or NEUTRAL categories with a confidence score.</p>
+                </div>
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="text-4xl mb-4">🎭</div>
+                    <h3 class="text-xl font-bold mb-2">Emotion Detection</h3>
+                    <p class="text-gray-400">Identifies predominant emotions like joy, sadness, anger, fear, or surprise.</p>
+                </div>
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="text-4xl mb-4">📄</div>
+                    <h3 class="text-xl font-bold mb-2">Text Summarization</h3>
+                    <p class="text-gray-400">Generates concise, abstractive summaries for texts longer than 30 words.</p>
+                </div>
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="text-4xl mb-4">☁️</div>
+                    <h3 class="text-xl font-bold mb-2">Word Cloud</h3>
+                    <p class="text-gray-400">Visualizes word frequency in a separate, non-blocking window with sentiment-based color coding.</p>
+                </div>
+                <div class="glass-card p-6 rounded-2xl border-2 border-pink-500">
+                    <div class="text-4xl mb-4">🚀</div>
+                    <h3 class="text-xl font-bold mb-2 text-pink-400">PRO Mode: Fine-Tuning</h3>
+                    <p class="text-gray-400">Empowers users to upload their own corpus (.txt, .csv, OCR) to fine-tune a new language model (distilgpt2 or gpt2) for domain-specific text generation.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: PRO vs. Light Mode -->
+        <section id="pro-mode" class="my-24">
+            <h2 class="text-4xl font-bold text-center mb-12">
+                PRO <span class="text-pink-500 text-glow-pink">vs</span> Light Version
+            </h2>
+            <p class="text-center text-gray-400 max-w-3xl mx-auto mb-12">
+                The application operates in two modes. "Light" mode provides quick access to standard models, while "PRO" mode unlocks the full suite of customization and fine-tuning capabilities.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+                <!-- Light Mode Card -->
+                <div class="glass-card p-8 rounded-2xl border-2 border-gray-600 h-full">
+                    <h3 class="text-3xl font-bold text-white mb-6 text-center">Light Mode</h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <span class="text-cyan-400 font-bold text-xl mr-3 mt-1">✓</span>
+                            <span class="text-gray-300">Access to all core NLP tasks.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-cyan-400 font-bold text-xl mr-3 mt-1">✓</span>
+                            <span class="text-gray-300">Uses pre-trained, general-purpose models (like `distilgpt2`).</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-cyan-400 font-bold text-xl mr-3 mt-1">✓</span>
+                            <span class="text-gray-300">Instant results for quick analysis.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-red-400 font-bold text-xl mr-3 mt-1">✗</span>
+                            <span class="text-gray-500">Cannot upload custom data.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-red-400 font-bold text-xl mr-3 mt-1">✗</span>
+                            <span class="text-gray-500">Cannot fine-tune models.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-red-400 font-bold text-xl mr-3 mt-1">✗</span>
+                            <span class="text-gray-500">No preprocessing pipeline.</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- PRO Mode Card -->
+                <div class="glass-card p-8 rounded-2xl border-2 border-pink-500 h-full">
+                    <h3 class="text-3xl font-bold text-pink-400 text-glow-pink mb-6 text-center">PRO Mode</h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <span class="text-green-400 font-bold text-xl mr-3 mt-1">✓</span>
+                            <span class="text-gray-300">All core NLP tasks.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-green-400 font-bold text-xl mr-3 mt-1">✓</span>
+                            <span class="text-gray-300 font-semibold">Corpus-Aware Model Fine-Tuning.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-green-400 font-bold text-xl mr-3 mt-1">✓</span>
+                            <span class="text-gray-300">Upload custom corpus (.txt, .csv, or images via OCR).</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-green-400 font-bold text-xl mr-3 mt-1">✓</span>
+                            <span class="text-gray-300">Selectable base models (`distilgpt2` or `gpt2`).</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-green-400 font-bold text-xl mr-3 mt-1">✓</span>
+                            <span class="text-gray-300">Interactive preprocessing pipeline (slang, emojis, spelling, etc.).</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-green-400 font-bold text-xl mr-3 mt-1">✓</span>
+                            <span class="text-gray-300">Robust, long-duration training with checkpoint saving.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Tools & Architecture -->
+        <section id="architecture" class="my-24">
+            <h2 class="text-4xl font-bold text-center mb-12">
+                Tools & <span class="text-cyan-400 text-glow-cyan">Architecture</span>
+            </h2>
+            <p class="text-center text-gray-400 max-w-3xl mx-auto mb-12">
+                The application was built with a Python backend, leveraging powerful open-source libraries. The UI evolved from a native desktop app to a modern web app.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 text-center">
+                <!-- Data sourced from Documentation.txt -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <h3 class="text-xl font-bold text-cyan-400 mb-3">Core Backend</h3>
+                    <p class="text-gray-300">Python</p>
+                    <p class="text-gray-300">PyTorch</p>
+                </div>
+                <div class="glass-card p-6 rounded-2xl">
+                    <h3 class="text-xl font-bold text-cyan-400 mb-3">NLP Models</h3>
+                    <p class="text-gray-300">Hugging Face Transformers</p>
+                    <p class="text-gray-300">NLTK</p>
+                </div>
+                <div class="glass-card p-6 rounded-2xl">
+                    <h3 class="text-xl font-bold text-cyan-400 mb-3">Frontend / UI</h3>
+                    <p class="text-gray-300">Tkinter (Original)</p>
+                    <p class="text-gray-300">Streamlit (Evolution)</p>
+                </div>
+                <div class="glass-card p-6 rounded-2xl">
+                    <h3 class="text-xl font-bold text-cyan-400 mb-3">Data & Utils</h3>
+                    <p class="text-gray-300">Pandas (CSV)</p>
+                    <p class="text-gray-300">Pytesseract (OCR)</p>
+                    <p class="text-gray-300">WordCloud</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Section: Development Journey -->
+        <section id="journey" class="my-24">
+            <h2 class="text-4xl font-bold text-center mb-16">
+                The Development <span class="text-pink-500 text-glow-pink">Journey</span>
+            </h2>
+            <!-- Data sourced from Development_Journal.txt -->
+            <div class="space-y-16">
+                <div class="glass-card rounded-2xl overflow-hidden">
+                    <div class="p-8">
+                        <span class="text-sm font-semibold text-pink-400 uppercase">Phase 1: v2.6 - v2.7</span>
+                        <h3 class="text-3xl font-bold text-white mt-2">Early Scaffolding: A Usable Application</h3>
+                        <p class="text-gray-400 mt-4 leading-relaxed">
+                            The initial versions were functionally sound but lacked a professional user experience. The primary focus was to move beyond a basic script and build a robust, interactive GUI.
+                        </p>
+                        <p class="text-gray-300 mt-4 leading-relaxed">
+                            A critical step was making the Word Cloud generation non-blocking using Python's `threading` module. Previously, the main app would freeze. A "Home" button was added to avoid forcing users to restart, and the UI was re-architected into a fully event-driven, non-blocking model.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="glass-card rounded-2xl overflow-hidden">
+                    <div class="p-8">
+                        <span class="text-sm font-semibold text-pink-400 uppercase">Phase 2: v2.8 - v4.0</span>
+                        <h3 class="text-3xl font-bold text-white mt-2">The "PRO" Vision: Customization & Control</h3>
+                        <p class="text-gray-400 mt-4 leading-relaxed">
+                            With the UI stable, the goal shifted to making "PRO" mode truly powerful. The fine-tuning logic was enhanced from a naive line-based check to a robust, token-based chunking method—a standard in production NLP.
+                        </p>
+                        <p class="text-gray-300 mt-4 leading-relaxed">
+                            This release (dubbed the "Dr. Aryan Verma" Edition) fully realized the vision. It introduced the interactive preprocessing pipeline, letting users toggle cleaning steps. It also added the choice between `distilgpt2` (fast) and `gpt2` (robust). Critically, automatic checkpoint saving after each epoch was implemented, a feature essential for any serious deep learning app.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl overflow-hidden">
+                    <div class="p-8">
+                        <span class="text-sm font-semibold text-pink-400 uppercase">Phase 3: v5.0 - v6.4</span>
+                        <h3 class="text-3xl font-bold text-white mt-2">The Bug Hunt: Stabilization & Polish</h3>
+                        <p class="text-gray-400 mt-4 leading-relaxed">
+                            As features grew, so did the complexity—and the bugs. This phase was a humbling but necessary period of intense bug fixing and performance optimization, driven by user feedback.
+                        </p>
+                        <p class="text-gray-300 mt-4 leading-relaxed">
+                            A major performance bottleneck emerged: the application would freeze during preprocessing. The culprit was a highly inefficient `O(n^2)` spelling correction algorithm. This was re-engineered to first identify all unique misspelled words in a single pass (`O(n)`) and then apply corrections, resolving the freeze.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl overflow-hidden">
+                    <div class="p-8">
+                        <span class="text-sm font-semibold text-pink-400 uppercase">Phase 4: v7.0 - v7.3</span>
+                        <h3 class="text-3xl font-bold text-white mt-2">The Final Polish: "Arcade" Theme & Stability</h3>
+                        <p class="text-gray-400 mt-4 leading-relaxed">
+                            With core functionality stable, the final push was to achieve an expert-level GUI and squash the last remaining bugs. The final "Arcade" theme—a high-contrast, neon-on-dark interface—was introduced.
+                        </p>
+                        <p class="text-gray-300 mt-4 leading-relaxed">
+                            This, however, introduced new `TclError` crashes related to custom styling. The last set of bugs were the most frustrating: a configuration mismatch in `TrainingArguments` crashed fine-tuning, and text was disappearing on hover. These were meticulously traced and fixed, resulting in a stable, powerful, and visually compelling final product.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Problems & Resolutions -->
+        <section id="bugs" class="my-24">
+            <h2 class="text-4xl font-bold text-center mb-12">
+                Critical Problems & <span class="text-cyan-400 text-glow-cyan">Resolutions</span>
+            </h2>
+            <div class="max-w-4xl mx-auto space-y-6">
+                <!-- Data sourced from Version Updates.txt and Development_Journal.txt -->
+                <details>
+                    <summary class="flex justify-between items-center font-bold text-lg text-white">
+                        <span>Performance Fix: O(n²) Spelling Correction Freeze (v6.4)</span>
+                        <span class="text-cyan-400 text-sm">Click to expand</span>
+                    </summary>
+                    <div>
+                        <h4 class="text-lg font-semibold text-red-400 mb-2">Problem:</h4>
+                        <p class="text-gray-300 mb-4">The application would completely freeze when running spelling correction on large text corpora. The algorithm was inefficiently re-checking the entire corpus for every single word, a classic O(n²) complexity problem.</p>
+                        <h4 class="text-lg font-semibold text-green-400 mb-2">Resolution:</h4>
+                        <p class="text-gray-300">The pipeline was re-engineered. The new logic first identifies all *unique* misspelled words in a single pass (O(n)), creates a correction map, and then iterates one more time to apply the corrections. This resolved the freeze entirely and provided a better UX by splitting the progress bar into "Identifying" and "Applying".</p>
+                    </div>
+                </details>
+
+                <details>
+                    <summary class="flex justify-between items-center font-bold text-lg text-white">
+                        <span>GUI Crash: TclError on "Arcade" Theme (v7.2)</span>
+                        <span class="text-cyan-400 text-sm">Click to expand</span>
+                    </summary>
+                    <div>
+                        <h4 class="text-lg font-semibold text-red-400 mb-2">Problem:</h4>
+                        <p class="text-gray-300 mb-4">Introducing the new "Arcade" theme caused the application to crash on startup with a `TclError: Layout Custom.TLabelFrame not found`. The custom Tkinter (ttk) styles were not being defined correctly before being applied.</p>
+                        <h4 class="text-lg font-semibold text-green-400 mb-2">Resolution:</h4>
+                        <p class="text-gray-300">After careful debugging, the issue was isolated to an improper style definition. The fix involved ensuring that all custom styles were correctly defined and applied, guaranteeing the application would start reliably with the new theme.</p>
+                    </div>
+                </details>
+
+                <details>
+                    <summary class="flex justify-between items-center font-bold text-lg text-white">
+                        <span>Model Crash: Transformers TrainingArguments Conflict (v7.3)</span>
+                        <span class="text-cyan-400 text-sm">Click to expand</span>
+                    </summary>
+                    <div>
+                        <h4 class="text-lg font-semibold text-red-400 mb-2">Problem:</h4>
+                        <p class="text-gray-300 mb-4">The fine-tuning process, the core of PRO mode, was crashing. This was traced to a subtle configuration conflict in the Hugging Face `TrainingArguments` class, specifically when `load_best_model_at_end` was enabled without providing a separate evaluation set.</p>
+                        <h4 class="text-lg font-semibold text-green-400 mb-2">Resolution:</h4>
+                        <p class="text-gray-300">The configuration was corrected to align with the library's requirements, resolving the training crash and stabilizing the fine-tuning feature.</p>
+                    </div>
+                </details>
+                
+                <details>
+                    <summary class="flex justify-between items-center font-bold text-lg text-white">
+                        <span>UI Bug: Invisible Text on Hover (v7.3)</span>
+                        <span class="text-cyan-400 text-sm">Click to expand</span>
+                    </summary>
+                    <div>
+                        <h4 class="text-lg font-semibold text-red-400 mb-2">Problem:</h4>
+                        <p class="text-gray-300 mb-4">A frustrating visual bug persisted where text on buttons, radio buttons, and dropdown menus would become invisible (or white-on-white) when hovered over, making the app unusable.</p>
+                        <h4 class="text-lg font-semibold text-green-400 mb-2">Resolution:</h4>
+                        <p class="text-gray-300">This required a meticulous review of all custom `ttk` style maps. The issue was a missing or incorrect foreground color setting for the `active` (hover) state. This was permanently resolved by explicitly defining the correct text color for all widget states.</p>
+                    </div>
+                </details>
+            </div>
+        </section>
+
+        <!-- Section: Code Deep Dive -->
+        <section id="code" class="my-24">
+            <h2 class="text-4xl font-bold text-center mb-12">
+                Code <span class="text-pink-500 text-glow-pink">Deep-Dive</span>
+            </h2>
+            <p class="text-center text-gray-400 max-w-3xl mx-auto mb-12">
+                This core function from `Streamlit_NLP.py` shows the advanced, multi-stage preprocessing pipeline, complete with weighted progress reporting. This function is the engine behind the "PRO Mode" corpus cleaning.
+            </p>
+            <!-- Code sourced from Streamlit_NLP.py -->
+            <div class="max-w-5xl mx-auto">
+<pre><code class="language-python">
+# This function is the heart of the "PRO Mode" preprocessing pipeline
+# It's designed to be modular and provide granular feedback to the UI
+
+CHAT_WORDS = {
+    "lol": "laughing out loud", "brb": "be right back", "btw": "by the way",
+    "omg": "oh my god", "imo": "in my opinion", "imho": "in my humble opinion",
+    # ... many more
+}
+
+def preprocess_corpus(text, options, progress_callback=None):
+    if not isinstance(text, str): return ""
+    
+    # Each stage is weighted to provide a more accurate ETA on the progress bar
+    stages = {
+        "Cleaning HTML/URLs": (10, lambda t: BeautifulSoup(t, "html.parser").get_text() and re.sub(r'httpsK?://\S+|www\.\S+', '', t) if options.get("Remove HTML/URLs") else t),
+        "Handling Emojis": (5, lambda t: emoji.demojize(t, delimiters=(" ", " ")) if options.get("Handle Emojis") == "Convert to Text" else (emoji.replace_emoji(t, replace='') if options.get("Handle Emojis") == "Remove" else t)),
+        "Expanding Chat Slang": (10, lambda t: ' '.join([CHAT_WORDS.get(word.lower(), word) for word in t.split()]) if options.get("Expand Chat Slang") else t),
+        "Lowercasing": (5, lambda t: t.lower() if options.get("Lowercase") else t),
+        "Tokenizing": (15, lambda t: word_tokenize(t)),
+        "Identifying Misspelled Words": (30, lambda t: (t, spell.unknown(t)) if options.get("Spelling Correction") and SPELLCHECK_AVAILABLE and isinstance(t, list) and (spell := SpellChecker()) else (t, set())),
+        "Applying Corrections": (15, lambda t_tuple: ([spell.correction(token) if token in t_tuple[1] else token for token in t_tuple[0]] if options.get("Spelling Correction") and SPELLCHECK_AVAILABLE and isinstance(t_tuple[0], list) and (spell := SpellChecker()) else t_tuple[0])),
+        "Finalizing Tokens": (10, lambda t: ' '.join(filter_and_lemmatize(t, options)) if isinstance(t, list) else t)
+    }
+
+    total_weight = sum(w for w, f in stages.values())
+    cumulative_weight = 0
+    
+    processed_data = text
+
+    for stage_name, (weight, func) in stages.items():
+        if progress_callback:
+            # The callback updates the Streamlit/Tkinter progress bar
+            progress_callback(cumulative_weight / total_weight, f"Processing: {stage_name}...")
+        
+        processed_data = func(processed_data)
+        cumulative_weight += weight
+        
+    if progress_callback:
+        progress_callback(1.0, "Finished")
+
+    return processed_data
+
+
+def filter_and_lemmatize(tokens, options):
+    final_tokens = []
+    lemmatizer = WordNetLemmatizer()
+    stop_words = set(stopwords.words('english'))
+    
+    for token in tokens:
+        if token is None: continue
+        
+        if not token.isalpha():
+            if options.get("Remove Punctuation"):
+                continue
+            else: 
+                pass
+        
+        if options.get("Remove Stopwords") and token.lower() in stop_words:
+            continue
+            
+        if options.get("Lemmatize"):
+            final_tokens.append(lemmatizer.lemmatize(token))
+        else:
+            final_tokens.append(token)
+            
+    return final_tokens
+</code></pre>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-12 border-t border-gray-800">
+        <p class="text-gray-500">NLP Application Suite PRO - A Journey in Iterative Development.</p>
+    </footer>
+
+    <!-- Prism.js for code highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+</body>
+</html>
+
