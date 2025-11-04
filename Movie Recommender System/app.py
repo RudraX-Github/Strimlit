@@ -20,12 +20,12 @@ def main_app(movies, similarity, all_genres):
 
     st.title('CineMatch Movie Recommender')
 
-    # --- NEW: Initialize session state for the filter ---
+    # --- Initialize session state for the filter ---
     if 'genre_filter' not in st.session_state:
         st.session_state.genre_filter = []
 
-    # --- NEW: Floating Popover instead of Sidebar ---
-    with st.popover("🔍 Filters & Info", use_container_width=True):
+    # --- NEW: Collapsible Sidebar for Filters ---
+    with st.sidebar:
         st.header("🔍 Filter Movies")
         st.markdown("Select genres to find movies you're in the mood for.")
         st.multiselect(
@@ -34,14 +34,9 @@ def main_app(movies, similarity, all_genres):
             key="genre_filter", # <-- Use session state key
             label_visibility="collapsed"
         )
-        
-        st.markdown("---")
-        st.header("🎬 About CineMatch")
-        st.info(
-            "This app recommends movies based on content similarity. The model analyzes movie tags (overview, genres, keywords, cast, and crew) "
-            "to find the 10 movies that are most similar to your selection."
-        )
-    # --- END OF POPOVER ---
+    # --- END OF SIDEBAR ---
+
+    # --- Popover REMOVED ---
 
     # --- Get filter value from session state ---
     selected_genres = st.session_state.genre_filter
@@ -103,11 +98,10 @@ def main_app(movies, similarity, all_genres):
             st.header(f"You selected: {movie_details['title']}")
             
             st.markdown('<div class="selected-movie-box">', unsafe_allow_html=True)
-            # --- UPDATED: Column ratio changed to [1, 3] for smaller poster ---
-            col1, col2 = st.columns([1, 3], gap="medium")
+            # --- UPDATED: Column ratio changed to [1, 4] for smaller poster ---
+            col1, col2 = st.columns([1, 4], gap="medium")
             
             with col1:
-                # --- UPDATED: Removed width='stretch' to use CSS ---
                 st.image(movie_details['poster_url'])
             
             with col2:
@@ -135,6 +129,7 @@ def main_app(movies, similarity, all_genres):
                 st.header(f"Movies You Might Also Like")
                 
                 with st.spinner('Finding similar movies and fetching posters...'):
+                    # --- BUG FIX: Added 'movies' and 'similarity' arguments ---
                     names, posters, overviews, ratings, genres_lists = recommend(
                         st.session_state.selected_movie, movies, similarity
                     )
@@ -205,7 +200,17 @@ def main_app(movies, similarity, all_genres):
     else:
         st.info("Select a movie from the dropdown to get started.")
 
-    # --- Footer "About" text REMOVED ---
+    # --- NEW: App Footer with "About" text ---
+    st.markdown("---")
+    st.markdown(
+        """
+        <p class.="app-footer">
+        This app recommends movies based on content similarity. The model analyzes movie tags (overview, genres, keywords, cast, and crew) 
+        to find the 10 movies that are most similar to your selection.
+        </p>
+        """, 
+        unsafe_allow_html=True
+    )
 # --- END OF main_app() FUNCTION ---
 
 
@@ -219,7 +224,7 @@ def fetch_poster(movie_id):
         if data.get('posters') and len(data['posters']) > 0:
             file_path = data['posters'][0].get('file_path')
             if file_path:
-                return f"https://image.tmdb.org/t/p/w500/{file_path}"
+                return f"https.://image.tmdb.org/t/p/w500/{file_path}"
     except requests.exceptions.RequestException as e:
         print(f"API Error in fetch_poster (ID: {movie_id}): {e}")
     return "https://via.placeholder.com/500x750.png?text=Poster+Not+Available"
@@ -245,6 +250,8 @@ def get_movie_details(movie_df, title):
         return details
     except (IndexError, AttributeError):
         st.error(f"Could not find details for '{title}'.")
+        return None # <-- Added missing return statement
+
 # --- 5. Helper Function: Get Recommendations ---
 def recommend(movie_title, movies_df, similarity_matrix):
     """
@@ -253,7 +260,6 @@ def recommend(movie_title, movies_df, similarity_matrix):
     Uses the provided movies_df and similarity_matrix to avoid relying on globals.
     Returns empty lists if inputs are invalid or movie not found.
     """
-    # Validate inputs
     if movies_df is None or similarity_matrix is None:
         st.error("Recommendation data is not available. Please reload the app.")
         return [], [], [], [], []
@@ -293,8 +299,7 @@ def recommend(movie_title, movies_df, similarity_matrix):
         print(f"Full Error in recommend: {e}")
         st.error("An unexpected error occurred while generating recommendations.")
         return [], [], [], [], []
-        st.error("An unexpected error occurred while generating recommendations.")
-        return [], [], [], [], []
+        # --- Removed duplicate error lines ---
 
 # --- 6. Helper Function: Filter Movies by Genre ---
 def get_filtered_movies(movies_df, selected_genres):
@@ -320,7 +325,7 @@ def load_data():
             return re.sub(r'([a-z])([A-Z])', r'\1 \2', name_string)
         return name_string
     
-    movies_dict_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/movies_dict.pkl'
+    movies_dict_url = 'https.://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/movies_dict.pkl'
     similarity_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/similarity.pkl'
     
     try:
@@ -379,7 +384,8 @@ st.set_page_config(
     page_title="CineMatch Recommender",
     page_icon="🎬",
     layout="wide",
-    # --- UPDATED: initial_sidebar_state removed ---
+    # --- UPDATED: Sidebar now collapses by default ---
+    initial_sidebar_state="collapsed"
 )
 
 # --- 🎨 3D CSS & STYLING OVERHAUL 🎨 ---
@@ -425,30 +431,19 @@ h3 {
     color: var(--color-text-primary);
     font-size: 1.25rem;
 }
-/* --- Sidebar REMOVED --- */
 
-/* --- NEW: Popover Styling --- */
-button[data-testid="stPopover"] {
-    background-color: var(--color-content-bg);
-    color: var(--color-text-primary);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 1.05rem;
-    transition: all 0.3s ease;
-}
-button[data-testid="stPopover"]:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-}
-/* Popover content box */
-div[data-baseweb="popover"] > div {
+/* --- NEW: Sidebar Styling --- */
+.stSidebar > div:first-child {
     background: linear-gradient(180deg, #1E1E1E 0%, #111111 100%);
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px var(--color-shadow);
+    border-right: 1px solid var(--color-border);
 }
-/* --- End Popover Styling --- */
+.stSidebar h2 { /* Sidebar headers */
+    font-size: 1.5rem;
+    border-bottom: 2px solid var(--color-primary);
+    padding-bottom: 8px;
+    margin-top: 10px;
+}
+/* --- Popover Styling REMOVED --- */
 
 .stAlert, .stInfo, .stWarning {
     background-color: #262626;
@@ -517,7 +512,7 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
 .selected-movie-box img {
     border-radius: 8px;
     box-shadow: 0 8px 24px var(--color-shadow);
-    max-width: 280px; /* Controls max size */
+    max-width: 240px; /* Controls max size - Made Smaller */
     width: 100%;
     margin: 0 auto; /* Centers the image */
     display: block;
@@ -562,7 +557,7 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
 .movie-card img {
     border-radius: 7px;
     width: 100%;
-    max-height: 320px; 
+    max-height: 320px; /* This is for RECOMMENDATION cards, as you noted */
     object-fit: cover;
     margin-bottom: 10px;
 }
@@ -615,7 +610,15 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     font-size: 0.85rem;
     padding: 6px 14px;
 }
-/* --- Footer CSS REMOVED --- */
+/* --- NEW: App Footer Styling --- */
+.app-footer {
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--color-border);
+    padding-top: 20px;
+    margin-top: 40px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -633,12 +636,11 @@ try:
     with st.spinner('Loading movie data... This may take a moment on first load.'):
         movies, similarity, all_genres = load_data()
 except Exception as e:
-    # This will catch any error during load and display it
     st.error(f"A critical error occurred during app startup: {e}")
     st.stop()
 
 # This is the key: If load_data() succeeded, the variables will have data,
 # and the main_app() function will run. If it failed, they will be None,
-# and the app will stop gracefully after showing the error.
+s# and the app will stop gracefully after showing the error.
 if movies is not None and similarity is not None and all_genres is not None:
     main_app(movies, similarity, all_genres)
