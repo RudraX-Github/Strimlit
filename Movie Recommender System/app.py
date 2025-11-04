@@ -43,8 +43,7 @@ def get_movie_details(movie_df, title):
             "genres": movie.get('genres', []), # Already a list
             "rating": movie.get('vote_average', 0.0),
             "poster_url": poster_url,
-            # --- NEW FIELDS (REQUIRE .pkl UPDATE) ---
-            "language": movie.get('original_language', 'N/A').upper(),
+            # --- "language" field REMOVED ---
             "cast": movie.get('cast', ['N/A']), # Already a list of names
             "director": movie.get('director', 'N/A') # Already a string
         }
@@ -108,7 +107,7 @@ def recommend(movie_title):
 def load_data():
     """
     Fetches and processes data.
-    NOW REQUIRES 'original_language', 'cast', and 'crew' in the pkl file.
+    NOW REQUIRES 'cast' and 'crew' in the pkl file.
     """
     movies_dict_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/movies_dict.pkl'
     similarity_url = 'https.github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/similarity.pkl'
@@ -119,10 +118,10 @@ def load_data():
         movies_dict = pickle.loads(response_dict.content)
         movies = pd.DataFrame(movies_dict)
         
-        # --- UPDATED: Added new required columns ---
+        # --- UPDATED: 'original_language' REMOVED from required columns ---
         required_cols = [
             'movie_id', 'title', 'overview', 'genres', 'vote_average',
-            'original_language', 'cast', 'crew' 
+            'cast', 'crew' 
         ]
         
         if not all(col in movies.columns for col in required_cols):
@@ -531,12 +530,8 @@ if st.session_state.selected_movie:
             genre_html = "".join([f'<span class="tag">{g}</span>' for g in movie_details['genres']])
             st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
             
-            # --- Rating & Language ---
-            c1, c2 = st.columns(2)
-            with c1:
-                st.subheader(f"⭐ {movie_details['rating']:.1f} / 10")
-            with c2:
-                st.subheader(f"🗣️ {movie_details['language']}")
+            # --- Rating (Language Removed) ---
+            st.subheader(f"⭐ {movie_details['rating']:.1f} / 10")
             
             # --- Overview ---
             st.markdown("<h3>Overview</h3>", unsafe_allow_html=True)
