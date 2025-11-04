@@ -27,7 +27,6 @@ def fetch_poster(movie_id):
                 return f"https://image.tmdb.org/t/p/w500/{file_path}"
     except requests.exceptions.RequestException as e:
         print(f"API Error in fetch_poster (ID: {movie_id}): {e}")
-    # --- FIX 1: Corrected the fallback URL ---
     return "https://via.placeholder.com/500x750.png?text=Poster+Not+Available"
 
 
@@ -189,8 +188,6 @@ st.set_page_config(
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
-
-/* --- 1. Root Variables (Theme) --- */
 :root {
     --font-main: 'Montserrat', sans-serif;
     --color-bg: #111111;
@@ -202,16 +199,12 @@ st.markdown("""
     --color-text-secondary: #AAAAAA;
     --color-shadow: rgba(0, 0, 0, 0.5);
 }
-
-/* --- 2. Global Styles --- */
 html, body, .stApp {
     font-family: var(--font-main);
     background-color: var(--color-bg);
     color: var(--color-text-primary);
 }
 #MainMenu, footer { display: none; }
-
-/* --- 3. Typography Hierarchy --- */
 h1 {
     font-family: var(--font-main);
     font-weight: 700;
@@ -220,7 +213,7 @@ h1 {
     text-align: center;
     padding-bottom: 20px;
 }
-h2 { /* Main subheaders */
+h2 {
     font-family: var(--font-main);
     font-weight: 600;
     font-size: 1.75rem;
@@ -228,26 +221,22 @@ h2 { /* Main subheaders */
     border-bottom: 2px solid var(--color-border);
     padding-bottom: 10px;
 }
-h3 { /* Card subheaders */
+h3 {
     font-family: var(--font-main);
     font-weight: 600;
     color: var(--color-text-primary);
     font-size: 1.25rem;
 }
-
-/* --- 4. Sidebar Styling --- */
 .stSidebar > div:first-child {
     background: linear-gradient(180deg, #1E1E1E 0%, #111111 100%);
     border-right: 1px solid var(--color-border);
 }
-.stSidebar h2 { /* Sidebar headers */
+.stSidebar h2 {
     font-size: 1.5rem;
     border-bottom: 2px solid var(--color-primary);
     padding-bottom: 8px;
     margin-top: 10px;
 }
-
-/* --- 5. Component Styling --- */
 .stAlert, .stInfo, .stWarning {
     background-color: #262626;
     border: 1px solid var(--color-border);
@@ -303,10 +292,6 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     color: var(--color-primary);
     border-bottom: 3px solid var(--color-primary);
 }
-
-/* --- 6. Custom Card Components --- */
-
-/* Selected Movie Box */
 .selected-movie-box {
     background: linear-gradient(145deg, #1E1E1E, #242424);
     border-radius: 12px;
@@ -319,7 +304,7 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     border-radius: 8px;
     box-shadow: 0 8px 24px var(--color-shadow);
 }
-.selected-movie-box h3 { /* "Overview", "Cast" */
+.selected-movie-box h3 {
     color: var(--color-text-secondary);
     font-size: 1rem;
     text-transform: uppercase;
@@ -329,17 +314,15 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     font-weight: 600;
 }
 .selected-movie-box .stSubheader {
-    font-size: 2rem; /* Larger Rating */
+    font-size: 2rem;
     color: var(--color-text-primary);
     font-weight: 700;
 }
-.detail-list { /* Cast & Director names */
+.detail-list {
     font-size: 1rem;
     color: var(--color-text-primary);
     line-height: 1.6;
 }
-
-/* --- 7. 3-D Recommendation Card (NEW) --- */
 .movie-card {
     background-color: var(--color-content-bg);
     border: 1px solid var(--color-border);
@@ -414,8 +397,6 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     font-size: 0.85rem;
     padding: 6px 14px;
 }
-
-/* --- 8. App Footer (NEW) --- */
 .app-footer-info {
     text-align: center;
     color: var(--color-text-secondary);
@@ -458,10 +439,16 @@ col1, col2 = st.columns([3, 1])
 with col1:
     def on_select_change():
         st.session_state.selected_movie = st.session_state.movie_selector
+        
+    # --- THIS IS THE FIXED BLOCK ---
     try:
+        # Try to find the index of the currently selected movie
         current_index = filtered_movie_titles.index(st.session_state.selected_movie)
-    except ValueError:
+    except Exception: # Changed from ValueError to Exception
+        # If it fails (NameError, ValueError, etc.), just set index to None
         current_index = None
+    # --- END OF FIX ---
+        
     st.selectbox(
         "Type or select a movie from the dropdown:",
         filtered_movie_titles,
@@ -495,7 +482,7 @@ if st.session_state.selected_movie:
         col1, col2 = st.columns([1, 2], gap="medium")
         
         with col1:
-            # --- FIX 2: Replaced use_container_width=True with width='stretch' ---
+            # --- Replaced use_container_width=True with width='stretch' ---
             st.image(movie_details['poster_url'], width='stretch')
         
         with col2:
