@@ -39,13 +39,12 @@ def get_movie_details(movie_df, title):
         details = {
             "id": movie.get('movie_id', 'N/A'),
             "title": movie.get('title', 'Title Unknown'),
-            "overview": movie.get('overview', 'No overview available.'),
-            "genres": movie.get('genres', []), # Already a list
+            "overview": movie.get('overview', []), # Expecting a list of words
+            "genres": movie.get('genres', []), # Expecting a list of names
             "rating": movie.get('vote_average', 0.0),
             "poster_url": poster_url,
-            # --- "language" field REMOVED ---
-            "cast": movie.get('cast', ['N/A']), # Already a list of names
-            "director": movie.get('director', 'N/A') # Already a string
+            "cast": movie.get('cast', ['N/A']), # Expecting a list of names
+            "director": movie.get('director', 'N/A') # Expecting a string
         }
         return details
     except (IndexError, AttributeError):
@@ -85,9 +84,9 @@ def recommend(movie_title):
             idx = i[0]
             movie_ids.append(movies.iloc[idx].movie_id)
             movie_names.append(movies.iloc[idx].title)
-            movie_overviews.append(movies.iloc[idx].get('overview', 'No overview.'))
+            movie_overviews.append(movies.iloc[idx].get('overview', [])) # Get list
             movie_ratings.append(movies.iloc[idx].get('vote_average', 0.0))
-            movie_genres.append(movies.iloc[idx].get('genres', []))
+            movie_genres.append(movies.iloc[idx].get('genres', [])) # Get list
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             movie_posters = list(executor.map(fetch_poster, movie_ids))
@@ -102,12 +101,12 @@ def recommend(movie_title):
         st.error("An unexpected error occurred while generating recommendations.")
         return [], [], [], [], []
 
-# --- 4. Helper Function: Process and Load Data (UPDATED SCHEMA) ---
+# --- 4. Helper Function: Process and Load Data (FIXED) ---
 @st.cache_data
 def load_data():
     """
     Fetches and processes data.
-    NOW REQUIRES 'cast' and 'crew' in the pkl file.
+    This version correctly handles the pre-processed lists from the notebook.
     """
     movies_dict_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/movies_dict.pkl'
     similarity_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/similarity.pkl'
@@ -118,7 +117,8 @@ def load_data():
         movies_dict = pickle.loads(response_dict.content)
         movies = pd.DataFrame(movies_dict)
         
-        # --- UPDATED: 'original_language' REMOVED from required columns ---
+        # --- Data Validation ---
+        # We now expect 'crew' (as a list) from the pkl
         required_cols = [
             'movie_id', 'title', 'overview', 'genres', 'vote_average',
             'cast', 'crew' 
@@ -126,41 +126,25 @@ def load_data():
         
         if not all(col in movies.columns for col in required_cols):
             st.error(
-                "Data Error: Your 'movies_dict.pkl' file is out of date. "
-                "It's missing one or more required columns. "
-                "Please regenerate your pickle file to include: "
+                "Data Error: Your 'movies_dict.pkl' file is missing columns. "
+                "Please ensure your notebook saves: "
                 f"{required_cols}"
             )
             st.stop()
 
-        # --- Process 'genres', 'cast', and 'crew' ---
-        try:
-            # Process 'genres' (e.g., "[{'name': 'Action'}]")
-            movies['genres'] = movies['genres'].apply(
-                lambda x: [d['name'] for d in ast.literal_eval(x)] if isinstance(x, str) else []
-            )
+        # --- FIX: DATA IS ALREADY PROCESSED. NO PARSING NEEDED. ---
+        # The 'genres', 'cast', and 'overview' columns are already lists.
+        
+        # --- We just need to convert 'crew' (list) to 'director' (string) ---
+        # Your notebook saves crew as a list, e.g., ['James Cameron']
+        def extract_director_from_list(crew_list):
+            if isinstance(crew_list, list) and len(crew_list) > 0:
+                return crew_list[0] # Take the first name (the director)
+            return 'N/A'
             
-            # Process 'cast' (e.g., "[{'name': 'Tom Hanks'}]")
-            # We'll just take the top 5 names
-            movies['cast'] = movies['cast'].apply(
-                lambda x: [d['name'] for d in ast.literal_eval(x)[:5]] if isinstance(x, str) else []
-            )
-            
-            # Process 'crew' to find the director
-            def fetch_director(x):
-                if not isinstance(x, str):
-                    return 'N/A'
-                for d in ast.literal_eval(x):
-                    if d.get('job') == 'Director':
-                        return d.get('name', 'N/A')
-                return 'N/A'
-            
-            movies['director'] = movies['crew'].apply(fetch_director)
+        movies['director'] = movies['crew'].apply(extract_director_from_list)
 
-        except (ValueError, SyntaxError) as e:
-            st.error(f"Data Error: Could not parse 'genres', 'cast', or 'crew' columns: {e}")
-            st.stop()
-
+        # --- This logic will now work, as movies['genres'] is a list! ---
         all_genres = sorted(list(set(g for genre_list in movies['genres'] for g in genre_list)))
         
         response_sim = requests.get(similarity_url)
@@ -533,9 +517,9 @@ if st.session_state.selected_movie:
             # --- Rating (Language Removed) ---
             st.subheader(f"⭐ {movie_details['rating']:.1f} / 10")
             
-            # --- Overview ---
+            # --- Overview (FIXED) ---
             st.markdown("<h3>Overview</h3>", unsafe_allow_html=True)
-            st.write(movie_details['overview'])
+            st.write(" ".join(movie_details['overview'])) # <-- Joins the list into a string
             
             # --- NEW: Cast & Director ---
             c1, c2 = st.columns(2)
@@ -578,7 +562,8 @@ if st.session_state.selected_movie:
                                 with st.expander("Details"):
                                     genre_html = "".join([f'<span class="tag">{g}</span>' for g in genres_lists[i]])
                                     st.markdown(f'<div classs="tags-container">{genre_html}</div>', unsafe_allow_html=True)
-                                    st.write(f"**📖 Overview:** {overviews[i]}")
+                                    # --- Overview (FIXED) ---
+                                    st.write(f"**📖 Overview:** {" ".join(overviews[i])}")
 
                                 st.button(
                                     "Find movies like this", 
@@ -608,7 +593,8 @@ if st.session_state.selected_movie:
                                 with st.expander("Details"):
                                     genre_html = "".join([f'<span class="tag">{g}</span>' for g in genres_lists[i]])
                                     st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
-                                    st.write(f"**📖 Overview:** {overviews[i]}")
+                                    # --- Overview (FIXED) ---
+                                    st.write(f"**📖 Overview:** {" ".join(overviews[i])}")
 
                                 st.button(
                                     "Find movies like this", 
