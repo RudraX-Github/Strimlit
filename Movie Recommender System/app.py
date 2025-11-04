@@ -93,21 +93,37 @@ def recommend(movie):
         return [], []
 
 # --- Load Data (from your notebook's output) ---
-try:
-    # --- UPDATED FILE PATHS ---
-    # Using raw strings (r'...') to correctly handle Windows paths
-    movies_dict_path = r'D:\Git_HUB\Strimlit\Movie Recommender System\pickle files\movies_dict.pkl'
-    similarity_path = r'D:\Git_HUB\Strimlit\Movie Recommender System\pickle files\similarity.pkl'
+
+@st.cache_data  # Cache the data so it doesn't re-load from GitHub on every interaction
+def load_data():
+    """
+    Fetches pickle files from GitHub and loads them into memory.
+    Caches the result to improve performance.
+    """
+    movies_dict_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/movies_dict.pkl'
+    similarity_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/similarity.pkl'
     
-    movies_dict = pickle.load(open(movies_dict_path, 'rb'))
+    # Fetch and load movies_dict
+    response_dict = requests.get(movies_dict_url)
+    response_dict.raise_for_status()  # Raise an error if the download fails
+    movies_dict = pickle.loads(response_dict.content)
     movies = pd.DataFrame(movies_dict)
     
-    similarity = pickle.load(open(similarity_path, 'rb'))
+    # Fetch and load similarity
+    response_sim = requests.get(similarity_url)
+    response_sim.raise_for_status() # Raise an error if the download fails
+    similarity = pickle.loads(response_sim.content)
     
-except FileNotFoundError:
-    st.error("Error: One or more pickle files were not found.")
-    st.info("Please check the file paths in app.py to ensure they are correct:")
-    st.code(f"Movies Dict Path: {movies_dict_path}\nSimilarity Path: {similarity_path}", language="text")
+    return movies, similarity
+
+try:
+    # Show a spinner while the data is loading (especially on first run)
+    with st.spinner('Loading movie data... This may take a moment on first load.'):
+        movies, similarity = load_data()
+    
+except requests.exceptions.RequestException as e:
+    st.error(f"Error downloading pickle files from GitHub: {e}")
+    st.info("Please check the URLs in app.py and your internet connection.")
     st.stop()
 except Exception as e:
     st.error(f"Error loading pickle files: {e}")
