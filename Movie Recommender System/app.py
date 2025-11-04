@@ -5,10 +5,10 @@ import requests
 import ast
 import random
 import concurrent.futures
-import re # <-- 1. ADDED IMPORT FOR NAME FORMATTING
+import re 
 
 # --- 2. API Config ---
-API_READ_ACCESS_TOKEN = "eyJhbGciOiJIZzI1NiJ9.eyJhdWQiOiIzYmQzMGMxZmQ1YTkwNzdkODNlZGU1NDRiNzE5MGEzMCIsIm5iZiI6MTc2MjE1MjU2NS4wODcwMDAxLCJzdWIiOiI2OTA4NTA3NTMxZTQzNThmNDEwODE4MzUiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.npzY38JNcrTkUKFDZ41XiZs_CmZsSls3oU63vo8gIIo"
+API_READ_ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzYmQzMGMxZmQ1YTkwNzdkODNlZGU1NDRiNzE5MGEzMCIsIm5iZiI6MTc2MjE1MjU2NS4wODcwMDAxLCJzdWIiOiI2OTA4NTA3NTMxZTQzNThmNDEwODE4MzUiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.npzY38JNcrTkUKFDZ41XiZs_CmZsSls3oU63vo8gIIo"
 HEADERS = {
     "accept": "application/json",
     "Authorization": f"Bearer {API_READ_ACCESS_TOKEN}"
@@ -27,7 +27,8 @@ def fetch_poster(movie_id):
                 return f"https://image.tmdb.org/t/p/w500/{file_path}"
     except requests.exceptions.RequestException as e:
         print(f"API Error in fetch_poster (ID: {movie_id}): {e}")
-    return "https.via.placeholder.com/500x750.png?text=Poster+Not+Available"
+    # --- FIX 1: Corrected the fallback URL ---
+    return "https://via.placeholder.com/500x750.png?text=Poster+Not+Available"
 
 
 # --- 4. Helper Function: Get Movie Details ---
@@ -95,7 +96,6 @@ def get_filtered_movies(movies_df, selected_genres):
     if not selected_genres:
         return movies_df
     
-    # --- FIXED: Changed from any() to all() for a stricter, more intuitive filter ---
     def has_all_genres(genre_list):
         return all(genre in genre_list for genre in selected_genres)
         
@@ -109,11 +109,8 @@ def load_data():
     Fixes spaceless names (e.g., 'SamWorthington' -> 'Sam Worthington').
     """
     
-    # --- 7a. Helper function to add spaces back to names ---
     def format_name(name_string):
         if isinstance(name_string, str):
-            # Uses regex to find a lowercase letter followed by an uppercase letter
-            # and inserts a space between them.
             return re.sub(r'([a-z])([A-Z])', r'\1 \2', name_string)
         return name_string
     
@@ -135,16 +132,13 @@ def load_data():
             )
             st.stop()
 
-        # --- 7b. Apply name formatting during data load ---
         def extract_director_from_list(crew_list):
             if isinstance(crew_list, list) and len(crew_list) > 0:
                 return crew_list[0]
             return 'N/A'
             
-        # Apply formatting to director
         movies['director'] = movies['crew'].apply(extract_director_from_list).apply(format_name)
         
-        # Apply formatting to each name in the cast list
         movies['cast'] = movies['cast'].apply(
             lambda names: [format_name(name) for name in names if isinstance(names, list)]
         )
@@ -350,19 +344,16 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     background-color: var(--color-content-bg);
     border: 1px solid var(--color-border);
     border-radius: 10px;
-    padding: 12px; /* Reduced padding */
+    padding: 12px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     height: 100%; 
     display: flex;
     flex-direction: column;
     position: relative;
-    
-    /* 3D Effect Setup */
     transform: perspective(1000px);
     transition: all 0.3s ease-in-out;
 }
 .movie-card:hover {
-    /* 3D Tilt Illusion */
     transform: perspective(1000px) rotateY(-8deg) rotateX(4deg) scale(1.05);
     box-shadow: 0 12px 24px rgba(0,0,0,0.5);
     border-color: var(--color-primary);
@@ -370,8 +361,7 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
 .movie-card img {
     border-radius: 7px;
     width: 100%;
-    /* --- SMALLER POSTER --- */
-    max-height: 320px; /* Controls poster height */
+    max-height: 320px; 
     object-fit: cover;
     margin-bottom: 10px;
 }
@@ -451,15 +441,6 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     
-    # --- "Model Details" REMOVED ---
-    
-    # --- "About CineMatch" REMOVED ---
-
-# Filter the main movie list
-filtered_movies_df = get_filtered_movies(movies, selected_genres)
-filtered_movie_titles = sorted(filtered_movies_df['title'].values)
-
-
 # ==========================================================
 #                   11. MAIN PAGE
 # ==========================================================
@@ -514,7 +495,8 @@ if st.session_state.selected_movie:
         col1, col2 = st.columns([1, 2], gap="medium")
         
         with col1:
-            st.image(movie_details['poster_url'], use_container_width=True)
+            # --- FIX 2: Replaced use_container_width=True with width='stretch' ---
+            st.image(movie_details['poster_url'], width='stretch')
         
         with col2:
             genre_html = "".join([f'<span class="tag">{g}</span>' for g in movie_details['genres']])
@@ -527,7 +509,6 @@ if st.session_state.selected_movie:
             
             c1, c2 = st.columns(2)
             with c1:
-                # --- "Top 5" REMOVED ---
                 st.markdown("<h3>Cast</h3>", unsafe_allow_html=True)
                 cast_list = ", ".join(movie_details['cast'])
                 st.markdown(f'<div class="detail-list">{cast_list}</div>', unsafe_allow_html=True)
@@ -563,7 +544,6 @@ if st.session_state.selected_movie:
                                 
                                 with st.expander("Details"):
                                     genre_html = "".join([f'<span class="tag">{g}</span>' for g in genres_lists[i]])
-                                    # --- "classs" TYPO FIXED ---
                                     st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
                                     st.write(f"**📖 Overview:** {" ".join(overviews[i])}")
 
@@ -593,7 +573,6 @@ if st.session_state.selected_movie:
                                 
                                 with st.expander("Details"):
                                     genre_html = "".join([f'<span class="tag">{g}</span>' for g in genres_lists[i]])
-                                    # --- "classs" TYPO FIXED ---
                                     st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
                                     st.write(f"**📖 Overview:** {" ".join(overviews[i])}")
 
