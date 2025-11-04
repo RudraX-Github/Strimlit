@@ -2,7 +2,7 @@ import streamlit as st
 import pickle
 import pandas as pd
 import requests
-import ast
+import ast  # For safely evaluating string representations of lists/dicts
 import random
 import concurrent.futures
 
@@ -40,25 +40,42 @@ def get_movie_details(movie_df, title):
             "id": movie.get('movie_id', 'N/A'),
             "title": movie.get('title', 'Title Unknown'),
             "overview": movie.get('overview', 'No overview available.'),
-            "genres": movie.get('genres', []),
+            "genres": movie.get('genres', []), # Already a list
             "rating": movie.get('vote_average', 0.0),
-            "poster_url": poster_url
+            "poster_url": poster_url,
+            # --- NEW FIELDS (REQUIRE .pkl UPDATE) ---
+            "language": movie.get('original_language', 'N/A').upper(),
+            "cast": movie.get('cast', ['N/A']), # Already a list of names
+            "director": movie.get('director', 'N/A') # Already a string
         }
         return details
     except (IndexError, AttributeError):
         st.error(f"Could not find details for '{title}'.")
         return None
 
-# --- 3. Helper Function: Get Recommendations ---
+# --- 3. Helper Function: Get Recommendations (UPDATED LOGIC) ---
 def recommend(movie_title):
     """
-    Finds the top 10 similar movies and fetches all data in parallel.
+    Finds the top 8 similar movies and 2 least similar movies.
+    Fetches all data in parallel.
     """
     try:
         movie_index = movies[movies['title'] == movie_title].index[0]
         distances = similarity[movie_index]
-        movies_list_indices = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:11]
         
+        # --- MODIFIED: Get Top 8 and Bottom 2 ---
+        sorted_indices = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])
+        
+        # Top 8 most similar (indices 1 to 8)
+        top_8_indices = sorted_indices[1:9]
+        
+        # 2 least similar (last 2 from the list)
+        bottom_2_indices = sorted_indices[-2:]
+        
+        # Combine them
+        movies_list_indices = top_8_indices + bottom_2_indices
+        
+        # --- Prepare data for all 10 movies ---
         movie_ids = []
         movie_names = []
         movie_overviews = []
@@ -86,14 +103,15 @@ def recommend(movie_title):
         st.error("An unexpected error occurred while generating recommendations.")
         return [], [], [], [], []
 
-# --- 4. Helper Function: Process and Load Data ---
+# --- 4. Helper Function: Process and Load Data (UPDATED SCHEMA) ---
 @st.cache_data
 def load_data():
     """
     Fetches and processes data.
+    NOW REQUIRES 'original_language', 'cast', and 'crew' in the pkl file.
     """
     movies_dict_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/movies_dict.pkl'
-    similarity_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/similarity.pkl'
+    similarity_url = 'https.github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/similarity.pkl'
     
     try:
         response_dict = requests.get(movies_dict_url)
@@ -101,20 +119,47 @@ def load_data():
         movies_dict = pickle.loads(response_dict.content)
         movies = pd.DataFrame(movies_dict)
         
-        required_cols = ['movie_id', 'title', 'overview', 'genres', 'vote_average']
+        # --- UPDATED: Added new required columns ---
+        required_cols = [
+            'movie_id', 'title', 'overview', 'genres', 'vote_average',
+            'original_language', 'cast', 'crew' 
+        ]
+        
         if not all(col in movies.columns for col in required_cols):
             st.error(
-                "Data Error: Your 'movies_dict.pkl' file is missing one or more "
-                f"required columns: {required_cols}. "
+                "Data Error: Your 'movies_dict.pkl' file is out of date. "
+                "It's missing one or more required columns. "
+                "Please regenerate your pickle file to include: "
+                f"{required_cols}"
             )
             st.stop()
 
+        # --- Process 'genres', 'cast', and 'crew' ---
         try:
+            # Process 'genres' (e.g., "[{'name': 'Action'}]")
             movies['genres'] = movies['genres'].apply(
                 lambda x: [d['name'] for d in ast.literal_eval(x)] if isinstance(x, str) else []
             )
+            
+            # Process 'cast' (e.g., "[{'name': 'Tom Hanks'}]")
+            # We'll just take the top 5 names
+            movies['cast'] = movies['cast'].apply(
+                lambda x: [d['name'] for d in ast.literal_eval(x)[:5]] if isinstance(x, str) else []
+            )
+            
+            # Process 'crew' to find the director
+            def fetch_director(x):
+                if not isinstance(x, str):
+                    return 'N/A'
+                for d in ast.literal_eval(x):
+                    if d.get('job') == 'Director':
+                        return d.get('name', 'N/A')
+                return 'N/A'
+            
+            movies['director'] = movies['crew'].apply(fetch_director)
+
         except (ValueError, SyntaxError) as e:
-            st.error(f"Data Error: Could not parse the 'genres' column: {e}")
+            st.error(f"Data Error: Could not parse 'genres', 'cast', or 'crew' columns: {e}")
             st.stop()
 
         all_genres = sorted(list(set(g for genre_list in movies['genres'] for g in genre_list)))
@@ -132,16 +177,17 @@ def load_data():
         st.error(f"Error loading or processing data: {e}")
         st.stop()
 
-# --- 5. Helper Function: Filter Movies by Genre ---
+# --- 5. Helper Function: Filter Movies by Genre (FIXED) ---
 def get_filtered_movies(movies_df, selected_genres):
     """Filters the movie DataFrame based on selected genres."""
     if not selected_genres:
         return movies_df
     
-    def has_all_genres(genre_list):
-        return all(genre in genre_list for genre in selected_genres)
+    # --- FIXED: Changed from all() to any() for a better user experience ---
+    def has_any_genre(genre_list):
+        return any(genre in genre_list for genre in selected_genres)
         
-    return movies_df[movies_df['genres'].apply(has_all_genres)]
+    return movies_df[movies_df['genres'].apply(has_any_genre)]
 
 # --- 6. Helper Function: Set selected movie (for callbacks) ---
 def set_selected_movie(title):
@@ -170,39 +216,27 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 🎨 ADVANCED CSS INJECTION 🎨 ---
-# This is a complete theme overhaul.
+# --- 🎨 ADVANCED CSS (UPDATED) 🎨 ---
 st.markdown("""
 <style>
-/* --- 1. Import Google Font --- */
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
-
-/* --- 2. Define CSS Variables (Theme) --- */
 :root {
     --font-main: 'Montserrat', sans-serif;
-    --color-bg: #111111; /* Dark background */
-    --color-content-bg: #1E1E1E; /* Lighter background for cards */
-    --color-border: #333333; /* Borders */
-    --color-primary: #E50914; /* Netflix Red */
-    --color-primary-hover: #F61A25; /* Brighter red for hover */
-    --color-text-primary: #FFFFFF; /* White text */
-    --color-text-secondary: #AAAAAA; /* Gray text */
+    --color-bg: #111111;
+    --color-content-bg: #1E1E1E;
+    --color-border: #333333;
+    --color-primary: #E50914;
+    --color-primary-hover: #F61A25;
+    --color-text-primary: #FFFFFF;
+    --color-text-secondary: #AAAAAA;
     --color-shadow: rgba(0, 0, 0, 0.4);
 }
-
-/* --- 3. Global Styles --- */
 html, body, .stApp {
     font-family: var(--font-main);
     background-color: var(--color-bg);
     color: var(--color-text-primary);
 }
-
-/* Hide Streamlit's default header and footer */
-#MainMenu, footer {
-    display: none;
-}
-
-/* Main title */
+#MainMenu, footer { display: none; }
 h1 {
     font-family: var(--font-main);
     font-weight: 700;
@@ -210,24 +244,16 @@ h1 {
     text-align: center;
     padding-bottom: 20px;
 }
-
-/* Subheaders */
 h2, h3 {
     font-family: var(--font-main);
     font-weight: 600;
     color: var(--color-text-primary);
 }
 
-/* --- 4. Streamlit Component Styling --- */
-
 /* Sidebar */
 .stSidebar > div:first-child {
     background-color: var(--color-content-bg);
     border-right: 1px solid var(--color-border);
-}
-.stSidebar .stImage img {
-    border-radius: 10px;
-    box-shadow: 0 4px 15px var(--color-shadow);
 }
 .stSidebar .stAlert, .stInfo {
     background-color: #262626;
@@ -236,7 +262,7 @@ h2, h3 {
     color: var(--color-text-secondary);
 }
 
-/* Main "Show Recommendations" Button */
+/* Buttons */
 .stButton > button[kind="primary"] {
     background-color: var(--color-primary);
     border: none;
@@ -251,8 +277,6 @@ h2, h3 {
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(229, 9, 20, 0.3);
 }
-
-/* "Surprise Me" and "Find like this" Buttons */
 .stButton > button {
     background-color: var(--color-content-bg);
     color: var(--color-text-primary);
@@ -277,56 +301,28 @@ h2, h3 {
     background-color: var(--color-content-bg);
     border: 1px solid var(--color-border);
     border-radius: 8px;
-    color: var(--color-text-primary);
 }
-/* Style dropdown menu */
 div[data-baseweb="popover"] ul li {
     background-color: var(--color-content-bg);
     color: var(--color-text-primary);
 }
-div[data-baseweb="popover"] ul li:hover {
-    background-color: #333333;
-}
-
-/* Expander */
+div[data-baseweb="popover"] ul li:hover { background-color: #333333; }
 .stExpander {
     background-color: #262626;
     border: 1px solid var(--color-border);
     border-radius: 8px;
 }
-.stExpander header {
-    color: var(--color-text-secondary);
-    font-weight: 600;
-}
-.stExpander header:hover {
-    color: var(--color-primary);
-}
-
-/* Spinner */
-.stSpinner > div > div {
-    border-top-color: var(--color-primary);
-}
-
-/* Horizontal line */
-hr {
-    background: var(--color-border);
-    height: 1px;
-    border: none;
-}
-
-/* Tabs for Recommendations */
-div[data-testid="stTabs"] button[role="tab"] {
-    color: var(--color-text-secondary);
-    font-weight: 600;
-}
+.stExpander header { color: var(--color-text-secondary); font-weight: 600; }
+.stExpander header:hover { color: var(--color-primary); }
+.stSpinner > div > div { border-top-color: var(--color-primary); }
+hr { background: var(--color-border); height: 1px; border: none; }
+div[data-testid="stTabs"] button[role="tab"] { color: var(--color-text-secondary); font-weight: 600; }
 div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     color: var(--color-primary);
     border-bottom: 2px solid var(--color-primary);
 }
 
-/* --- 5. Custom Card Components --- */
-
-/* Selected Movie Box */
+/* --- Selected Movie Box (UPDATED) --- */
 .selected-movie-box {
     background-color: var(--color-content-bg);
     border-radius: 12px;
@@ -338,17 +334,22 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     border-radius: 8px;
     box-shadow: 0 4px 12px var(--color-shadow);
 }
-.selected-movie-box .stSubheader {
-    color: var(--color-text-primary);
-}
-.selected-movie-box h3 { /* "Rating", "Overview" */
+.selected-movie-box .stSubheader { color: var(--color-text-primary); }
+.selected-movie-box h3 {
     color: var(--color-text-secondary);
     font-size: 1.1rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin-bottom: 5px;
+}
+/* For Cast/Director list */
+.detail-list {
+    font-size: 0.95rem;
+    color: var(--color-text-primary);
+    margin-bottom: 15px;
 }
 
-/* Recommendation Card */
+/* --- Recommendation Card (UPDATED) --- */
 .movie-card {
     background-color: var(--color-content-bg);
     border: 1px solid var(--color-border);
@@ -360,6 +361,7 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     height: 100%; 
     display: flex;
     flex-direction: column;
+    position: relative; /* Needed for rating overlay */
 }
 .movie-card:hover {
     transform: translateY(-5px);
@@ -386,24 +388,33 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     line-height: 1.2em;
     margin-bottom: 10px;
 }
+/* --- NEW: Movie Rating on Card --- */
+.movie-rating {
+    position: absolute;
+    top: 18px; /* 12px padding + 6px */
+    left: 18px; /* 12px padding + 6px */
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #444;
+}
 .card-content {
     flex-grow: 1; 
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
-
-/* Genre Tags */
 .tags-container {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     margin-bottom: 15px;
-    justify-content: flex-start; /* Aligned left for selected movie */
+    justify-content: flex-start;
 }
-.movie-card .tags-container {
-    justify-content: center; /* Centered for recommendation cards */
-}
+.movie-card .tags-container { justify-content: center; }
 .tag {
     background-color: var(--color-primary);
     color: var(--color-text-primary);
@@ -422,16 +433,17 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
 
 
 # ==========================================================
-#                   SIDEBAR CONTENT
+#                   SIDEBAR CONTENT (RE-ORDERED)
 # ==========================================================
 
 with st.sidebar:
-    st.image("https://image.tmdb.org/t/p/w500/qJ2tW6WMUDg92VazziDs16NtnLo.jpg", use_container_width=True)
-    st.header("🎬 About CineMatch")
-    st.info(
-        "This app recommends movies based on content similarity. "
-        "The model analyzes movie tags (overview, genres, keywords, cast, and crew) "
-        "to find the 10 movies that are most similar to your selection."
+    # --- MOVED TO TOP ---
+    st.header("🔍 Filter Movies")
+    st.markdown("Select genres to find movies you're in the mood for.")
+    selected_genres = st.multiselect(
+        "Filter by genre:",
+        options=all_genres,
+        label_visibility="collapsed"
     )
     
     st.header("⚙️ Model Details")
@@ -443,13 +455,14 @@ with st.sidebar:
         """
     )
     
-    st.header("🔍 Filter Movies")
-    st.markdown("Select genres to narrow down the movie list below.")
-    selected_genres = st.multiselect(
-        "Filter by genre:",
-        options=all_genres,
-        label_visibility="collapsed"
+    # --- MOVED TO LAST ---
+    st.header("🎬 About CineMatch")
+    st.info(
+        "This app recommends movies based on content similarity. "
+        "The model analyzes movie tags (overview, genres, keywords, cast, and crew) "
+        "to find the 10 movies that are most similar to your selection."
     )
+    # --- REMOVED BROKEN IMAGE ---
 
 # Filter the main movie list
 filtered_movies_df = get_filtered_movies(movies, selected_genres)
@@ -457,12 +470,13 @@ filtered_movie_titles = sorted(filtered_movies_df['title'].values)
 
 
 # ==========================================================
-#                     MAIN PAGE
+#                     MAIN PAGE (UPDATED)
 # ==========================================================
 
 st.title('CineMatch Movie Recommender')
 st.markdown("---")
-st.header("Step 1: Choose a Movie You Like")
+# --- REMOVED "Step 1" HEADER ---
+st.header("Choose a Movie You Like")
 
 # --- Initialize Session State ---
 if 'selected_movie' not in st.session_state:
@@ -470,32 +484,27 @@ if 'selected_movie' not in st.session_state:
 
 # --- Main Selection Area ---
 col1, col2 = st.columns([3, 1])
-
 with col1:
     def on_select_change():
         st.session_state.selected_movie = st.session_state.movie_selector
-
     try:
         current_index = filtered_movie_titles.index(st.session_state.selected_movie)
     except ValueError:
         current_index = None
-
     st.selectbox(
         "Type or select a movie from the dropdown:",
         filtered_movie_titles,
         index=current_index,
-        placeholder="Select a movie...",
+        placeholder="Select a movie from the list...",
         key='movie_selector',
         on_change=on_select_change
     )
-
 with col2:
     def set_random_movie():
         if filtered_movie_titles:
             st.session_state.selected_movie = random.choice(filtered_movie_titles)
         else:
             st.warning("No movies match the selected genre filter.")
-
     st.button(
         "🎲 Surprise Me!", 
         on_click=set_random_movie, 
@@ -503,7 +512,7 @@ with col2:
         help="Pick a random movie from the filtered list"
     )
 
-# --- Display Selected Movie's Details ---
+# --- Display Selected Movie's Details (UPDATED) ---
 if st.session_state.selected_movie:
     movie_details = get_movie_details(movies, st.session_state.selected_movie)
     
@@ -511,35 +520,51 @@ if st.session_state.selected_movie:
         st.markdown("---")
         st.header(f"You selected: {movie_details['title']}")
         
-        # --- NEW: Custom Container for Selected Movie ---
-        # We replace st.container(border=True) with our custom CSS class
         st.markdown('<div class="selected-movie-box">', unsafe_allow_html=True)
-        
         col1, col2 = st.columns([1, 2], gap="medium")
+        
         with col1:
             st.image(movie_details['poster_url'], use_container_width=True)
+        
         with col2:
+            # --- Genres ---
             genre_html = "".join([f'<span class="tag">{g}</span>' for g in movie_details['genres']])
             st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
             
-            st.subheader(f"⭐ {movie_details['rating']:.1f} / 10")
+            # --- Rating & Language ---
+            c1, c2 = st.columns(2)
+            with c1:
+                st.subheader(f"⭐ {movie_details['rating']:.1f} / 10")
+            with c2:
+                st.subheader(f"🗣️ {movie_details['language']}")
             
+            # --- Overview ---
             st.markdown("<h3>Overview</h3>", unsafe_allow_html=True)
             st.write(movie_details['overview'])
+            
+            # --- NEW: Cast & Director ---
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("<h3>Cast (Top 5)</h3>", unsafe_allow_html=True)
+                cast_list = ", ".join(movie_details['cast'])
+                st.markdown(f'<div class="detail-list">{cast_list}</div>', unsafe_allow_html=True)
+            with c2:
+                st.markdown("<h3>Director</h3>", unsafe_allow_html=True)
+                st.markdown(f'<div class="detail-list">{movie_details["director"]}</div>', unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
-        # --- End of Custom Container ---
 
         # --- Main "Recommend" Button ---
         if st.button('Show Recommendations', use_container_width=True, type="primary"):
-            st.header(f"Step 2: Movies You Might Also Like")
+            # --- REMOVED "Step 2" HEADER ---
+            st.header(f"Movies You Might Also Like")
             
             with st.spinner('Finding similar movies and fetching posters...'):
                 names, posters, overviews, ratings, genres_lists = recommend(st.session_state.selected_movie)
                 
                 if names:
-                    # --- NEW: Using st.tabs for a cleaner UI ---
-                    tab1, tab2 = st.tabs(["Top 5 Recommendations", "You Might Also Like (6-10)"])
+                    # --- UPDATED: Tabs and Card Content ---
+                    tab1, tab2 = st.tabs(["Top 5 Recommendations", "More to Explore (6-10)"])
 
                     with tab1:
                         cols_row1 = st.columns(5, gap="medium")
@@ -547,6 +572,7 @@ if st.session_state.selected_movie:
                             with cols_row1[i]:
                                 st.markdown(f"""
                                 <div class="movie-card">
+                                    <div class="movie-rating">⭐ {ratings[i]:.1f}</div>
                                     <img src="{posters[i]}" alt="Poster for {names[i]}">
                                     <div class="card-content">
                                         <div class="movie-title">{names[i]}</div>
@@ -556,8 +582,7 @@ if st.session_state.selected_movie:
                                 
                                 with st.expander("Details"):
                                     genre_html = "".join([f'<span class="tag">{g}</span>' for g in genres_lists[i]])
-                                    st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
-                                    st.write(f"**⭐ Rating:** {ratings[i]:.1f} / 10")
+                                    st.markdown(f'<div classs="tags-container">{genre_html}</div>', unsafe_allow_html=True)
                                     st.write(f"**📖 Overview:** {overviews[i]}")
 
                                 st.button(
@@ -569,11 +594,15 @@ if st.session_state.selected_movie:
                                 )
                     
                     with tab2:
+                        # --- NEW: Info box explaining the content ---
+                        st.info("Includes recommendations 6-8 and two 'wildcard' (least similar) picks.")
+                        
                         cols_row2 = st.columns(5, gap="medium")
                         for i in range(5, 10):
                             with cols_row2[i-5]:
                                 st.markdown(f"""
                                 <div class="movie-card">
+                                    <div class="movie-rating">⭐ {ratings[i]:.1f}</div>
                                     <img src="{posters[i]}" alt="Poster for {names[i]}">
                                     <div class="card-content">
                                         <div class="movie-title">{names[i]}</div>
@@ -584,7 +613,6 @@ if st.session_state.selected_movie:
                                 with st.expander("Details"):
                                     genre_html = "".join([f'<span class="tag">{g}</span>' for g in genres_lists[i]])
                                     st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
-                                    st.write(f"**⭐ Rating:** {ratings[i]:.1f} / 10")
                                     st.write(f"**📖 Overview:** {overviews[i]}")
 
                                 st.button(
