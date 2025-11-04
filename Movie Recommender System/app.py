@@ -7,12 +7,207 @@ import random
 import concurrent.futures
 import re 
 
-# --- 2. API Config ---
+# --- 1. API Config ---
 API_READ_ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzYmQzMGMxZmQ1YTkwNzdkODNlZGU1NDRiNzE5MGEzMCIsIm5iZiI6MTc2MjE1MjU2NS4wODcwMDAxLCJzdWIiOiI2OTA4NTA3NTMxZTQzNThmNDEwODE4MzUiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.npzY38JNcrTkUKFDZ41XiZs_CmZsSls3oU63vo8gIIo"
 HEADERS = {
     "accept": "application/json",
     "Authorization": f"Bearer {API_READ_ACCESS_TOKEN}"
 }
+
+# --- 2. MAIN APP FUNCTION (NEW STRUCTURE) ---
+# All UI code now lives inside this function.
+def main_app(movies, similarity, all_genres):
+
+    st.title('CineMatch Movie Recommender')
+
+    # --- NEW: Initialize session state for the filter ---
+    if 'genre_filter' not in st.session_state:
+        st.session_state.genre_filter = []
+
+    # --- NEW: Floating Popover instead of Sidebar ---
+    with st.popover("🔍 Filters & Info", use_container_width=True):
+        st.header("🔍 Filter Movies")
+        st.markdown("Select genres to find movies you're in the mood for.")
+        st.multiselect(
+            "Filter by genre:",
+            options=all_genres,
+            key="genre_filter", # <-- Use session state key
+            label_visibility="collapsed"
+        )
+        
+        st.markdown("---")
+        st.header("🎬 About CineMatch")
+        st.info(
+            "This app recommends movies based on content similarity. The model analyzes movie tags (overview, genres, keywords, cast, and crew) "
+            "to find the 10 movies that are most similar to your selection."
+        )
+    # --- END OF POPOVER ---
+
+    # --- Get filter value from session state ---
+    selected_genres = st.session_state.genre_filter
+    
+    # Filter the main movie list
+    filtered_movies_df = get_filtered_movies(movies, selected_genres)
+    filtered_movie_titles = sorted(filtered_movies_df['title'].values)
+
+
+    # ==========================================================
+    #                   MAIN PAGE
+    # ==========================================================
+    
+    st.markdown("---")
+    st.header("Choose a Movie You Like")
+
+    # --- Initialize Session State for selected movie ---
+    if 'selected_movie' not in st.session_state:
+        st.session_state.selected_movie = None
+
+    # --- Main Selection Area ---
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        def on_select_change():
+            st.session_state.selected_movie = st.session_state.movie_selector
+            
+        try:
+            current_index = filtered_movie_titles.index(st.session_state.selected_movie)
+        except Exception: 
+            current_index = None
+            
+        st.selectbox(
+            "Type or select a movie from the dropdown:",
+            filtered_movie_titles,
+            index=current_index,
+            placeholder="Select a movie from the list...",
+            key='movie_selector',
+            on_change=on_select_change
+        )
+    with col2:
+        def set_random_movie():
+            if filtered_movie_titles:
+                st.session_state.selected_movie = random.choice(filtered_movie_titles)
+            else:
+                st.warning("No movies found for the selected genre filter.")
+        st.button(
+            "🎲 Surprise Me!", 
+            on_click=set_random_movie, 
+            use_container_width=True,
+            help="Pick a random movie from the filtered list"
+        )
+
+    # --- Display Selected Movie's Details ---
+    if st.session_state.selected_movie:
+        movie_details = get_movie_details(movies, st.session_state.selected_movie)
+        
+        if movie_details:
+            st.markdown("---")
+            st.header(f"You selected: {movie_details['title']}")
+            
+            st.markdown('<div class="selected-movie-box">', unsafe_allow_html=True)
+            # --- UPDATED: Column ratio changed to [1, 3] for smaller poster ---
+            col1, col2 = st.columns([1, 3], gap="medium")
+            
+            with col1:
+                # --- UPDATED: Removed width='stretch' to use CSS ---
+                st.image(movie_details['poster_url'])
+            
+            with col2:
+                genre_html = "".join([f'<span class="tag">{g}</span>' for g in movie_details['genres']])
+                st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
+                
+                st.subheader(f"⭐ {movie_details['rating']:.1f} / 10")
+                
+                st.markdown("<h3>Overview</h3>", unsafe_allow_html=True)
+                st.write(" ".join(movie_details['overview']))
+                
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("<h3>Cast</h3>", unsafe_allow_html=True)
+                    cast_list = ", ".join(movie_details['cast'])
+                    st.markdown(f'<div class="detail-list">{cast_list}</div>', unsafe_allow_html=True)
+                with c2:
+                    st.markdown("<h3>Director</h3>", unsafe_allow_html=True)
+                    st.markdown(f'<div class="detail-list">{movie_details["director"]}</div>', unsafe_allow_html=True)
+
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # --- Main "Recommend" Button ---
+            if st.button('Show Recommendations', use_container_width=True, type="primary"):
+                st.header(f"Movies You Might Also Like")
+                
+                with st.spinner('Finding similar movies and fetching posters...'):
+                    names, posters, overviews, ratings, genres_lists = recommend(
+                        st.session_state.selected_movie, movies, similarity
+                    )
+                    
+                    if names:
+                        tab1, tab2 = st.tabs(["Top 5 Recommendations", "More to Explore (6-10)"])
+
+                        with tab1:
+                            cols_row1 = st.columns(5, gap="medium")
+                            for i in range(5):
+                                with cols_row1[i]:
+                                    st.markdown(f"""
+                                    <div class="movie-card">
+                                        <div class="movie-rating">⭐ {ratings[i]:.1f}</div>
+                                        <img src="{posters[i]}" alt="Poster for {names[i]}">
+                                        <div class="card-content">
+                                            <div class="movie-title">{names[i]}</div>
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                    with st.expander("Details"):
+                                        genre_html = "".join([f'<span class="tag">{g}</span>' for g in genres_lists[i]])
+                                        st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
+                                        st.write(f"**📖 Overview:** {" ".join(overviews[i])}")
+
+                                    st.button(
+                                        "Find movies like this", 
+                                        key=f"btn_rec_1_{i}",
+                                        on_click=set_selected_movie,
+                                        args=(names[i],),
+                                        use_container_width=True
+                                    )
+                        
+                        with tab2:
+                            st.info("Includes recommendations 6-8 and two 'wildcard' (least similar) picks.")
+                            
+                            cols_row2 = st.columns(5, gap="medium")
+                            for i in range(5, 10):
+                                with cols_row2[i-5]:
+                                    st.markdown(f"""
+                                    <div class="movie-card">
+                                        <div class="movie-rating">⭐ {ratings[i]:.1f}</div>
+                                        <img src="{posters[i]}" alt="Poster for {names[i]}">
+                                        <div class="card-content">
+                                            <div class="movie-title">{names[i]}</div>
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                    with st.expander("Details"):
+                                        genre_html = "".join([f'<span class="tag">{g}</span>' for g in genres_lists[i]])
+                                        st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
+                                        st.write(f"**📖 Overview:** {" ".join(overviews[i])}")
+
+                                    st.button(
+                                        "Find movies like this", 
+                                        key=f"btn_rec_2_{i}",
+                                        on_click=set_selected_movie,
+                                        args=(names[i],),
+                                        use_container_width=True
+                                    )
+                    else:
+                        st.error("Could not find any recommendations.")
+        
+    elif not st.session_state.selected_movie and selected_genres:
+        st.info("Select a movie from the filtered list to get started.")
+    else:
+        st.info("Select a movie from the dropdown to get started.")
+
+    # --- Footer "About" text REMOVED ---
+# --- END OF main_app() FUNCTION ---
+
 
 # --- 3. Helper Function: Fetch Movie Poster ---
 def fetch_poster(movie_id):
@@ -27,7 +222,6 @@ def fetch_poster(movie_id):
                 return f"https://image.tmdb.org/t/p/w500/{file_path}"
     except requests.exceptions.RequestException as e:
         print(f"API Error in fetch_poster (ID: {movie_id}): {e}")
-    # --- FIX 1: Corrected the fallback URL ---
     return "https://via.placeholder.com/500x750.png?text=Poster+Not+Available"
 
 
@@ -41,47 +235,57 @@ def get_movie_details(movie_df, title):
         details = {
             "id": movie.get('movie_id', 'N/A'),
             "title": movie.get('title', 'Title Unknown'),
-            "overview": movie.get('overview', []), # Expecting a list of words
-            "genres": movie.get('genres', []), # Expecting a list of names
+            "overview": movie.get('overview', []),
+            "genres": movie.get('genres', []),
             "rating": movie.get('vote_average', 0.0),
             "poster_url": poster_url,
-            "cast": movie.get('cast', ['N/A']), # Expecting a list of names
-            "director": movie.get('director', 'N/A') # Expecting a string
+            "cast": movie.get('cast', ['N/A']),
+            "director": movie.get('director', 'N/A')
         }
         return details
     except (IndexError, AttributeError):
         st.error(f"Could not find details for '{title}'.")
-        return None
-
 # --- 5. Helper Function: Get Recommendations ---
-def recommend(movie_title):
+def recommend(movie_title, movies_df, similarity_matrix):
     """
     Finds the top 8 similar movies and 2 least similar movies.
     Fetches all data in parallel.
+    Uses the provided movies_df and similarity_matrix to avoid relying on globals.
+    Returns empty lists if inputs are invalid or movie not found.
     """
+    # Validate inputs
+    if movies_df is None or similarity_matrix is None:
+        st.error("Recommendation data is not available. Please reload the app.")
+        return [], [], [], [], []
     try:
-        movie_index = movies[movies['title'] == movie_title].index[0]
-        distances = similarity[movie_index]
+        matched_indices = movies_df[movies_df['title'] == movie_title].index
+        if len(matched_indices) == 0:
+            st.error(f"Movie '{movie_title}' not found in the dataset. Please try another.")
+            return [], [], [], [], []
+        movie_index = matched_indices[0]
+
+        distances = similarity_matrix[movie_index]
         sorted_indices = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])
         top_8_indices = sorted_indices[1:9]
         bottom_2_indices = sorted_indices[-2:]
         movies_list_indices = top_8_indices + bottom_2_indices
-        
+
         movie_ids, movie_names, movie_overviews, movie_ratings, movie_genres = [], [], [], [], []
-        
+
         for i in movies_list_indices:
             idx = i[0]
-            movie_ids.append(movies.iloc[idx].movie_id)
-            movie_names.append(movies.iloc[idx].title)
-            movie_overviews.append(movies.iloc[idx].get('overview', []))
-            movie_ratings.append(movies.iloc[idx].get('vote_average', 0.0))
-            movie_genres.append(movies.iloc[idx].get('genres', []))
+            movie_row = movies_df.iloc[idx]
+            movie_ids.append(movie_row.movie_id)
+            movie_names.append(movie_row.title)
+            movie_overviews.append(movie_row.get('overview', []))
+            movie_ratings.append(movie_row.get('vote_average', 0.0))
+            movie_genres.append(movie_row.get('genres', []))
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             movie_posters = list(executor.map(fetch_poster, movie_ids))
-            
+
         return movie_names, movie_posters, movie_overviews, movie_ratings, movie_genres
-        
+
     except IndexError:
         st.error(f"Movie '{movie_title}' not found in the dataset. Please try another.")
         return [], [], [], [], []
@@ -89,8 +293,10 @@ def recommend(movie_title):
         print(f"Full Error in recommend: {e}")
         st.error("An unexpected error occurred while generating recommendations.")
         return [], [], [], [], []
+        st.error("An unexpected error occurred while generating recommendations.")
+        return [], [], [], [], []
 
-# --- 6. Helper Function: Filter Movies by Genre (FIXED) ---
+# --- 6. Helper Function: Filter Movies by Genre ---
 def get_filtered_movies(movies_df, selected_genres):
     """Filters the movie DataFrame based on selected genres."""
     if not selected_genres:
@@ -101,7 +307,7 @@ def get_filtered_movies(movies_df, selected_genres):
         
     return movies_df[movies_df['genres'].apply(has_all_genres)]
 
-# --- 7. Helper Function: Process and Load Data (FIXED) ---
+# --- 7. Helper Function: Process and Load Data ---
 @st.cache_data
 def load_data():
     """
@@ -157,22 +363,13 @@ def load_data():
     except Exception as e:
         st.error(f"Error loading or processing data: {e}")
         st.stop()
+    
+    return None, None, None
 
 # --- 8. Helper Function: Set selected movie (for callbacks) ---
 def set_selected_movie(title):
     """Callback function to update session state."""
     st.session_state.selected_movie = title
-
-# ==========================================================
-#                      LOAD DATA
-# ==========================================================
-
-try:
-    with st.spinner('Loading movie data... This may take a moment on first load.'):
-        movies, similarity, all_genres = load_data()
-except Exception:
-    st.error("A critical error occurred while loading data. The app cannot continue.")
-    st.stop()
 
 # ==========================================================
 #                 9. STREAMLIT UI & CSS
@@ -182,7 +379,7 @@ st.set_page_config(
     page_title="CineMatch Recommender",
     page_icon="🎬",
     layout="wide",
-    initial_sidebar_state="expanded"
+    # --- UPDATED: initial_sidebar_state removed ---
 )
 
 # --- 🎨 3D CSS & STYLING OVERHAUL 🎨 ---
@@ -228,16 +425,31 @@ h3 {
     color: var(--color-text-primary);
     font-size: 1.25rem;
 }
-.stSidebar > div:first-child {
+/* --- Sidebar REMOVED --- */
+
+/* --- NEW: Popover Styling --- */
+button[data-testid="stPopover"] {
+    background-color: var(--color-content-bg);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1.05rem;
+    transition: all 0.3s ease;
+}
+button[data-testid="stPopover"]:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+/* Popover content box */
+div[data-baseweb="popover"] > div {
     background: linear-gradient(180deg, #1E1E1E 0%, #111111 100%);
-    border-right: 1px solid var(--color-border);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px var(--color-shadow);
 }
-.stSidebar h2 {
-    font-size: 1.5rem;
-    border-bottom: 2px solid var(--color-primary);
-    padding-bottom: 8px;
-    margin-top: 10px;
-}
+/* --- End Popover Styling --- */
+
 .stAlert, .stInfo, .stWarning {
     background-color: #262626;
     border: 1px solid var(--color-border);
@@ -260,7 +472,7 @@ h3 {
     transform: translateY(-3px) scale(1.02);
     box-shadow: 0 8px 25px rgba(229, 9, 20, 0.4);
 }
-.stButton > button:not([kind="primary"]) {
+.stButton > button:not([kind="primary"]):not([data-testid="stPopover"]) {
     background-color: var(--color-content-bg);
     color: var(--color-text-primary);
     border: 1px solid var(--color-border);
@@ -268,7 +480,7 @@ h3 {
     font-weight: 600;
     transition: all 0.3s ease;
 }
-.stButton > button:not([kind="primary"]):hover {
+.stButton > button:not([kind="primary"]):not([data-testid="stPopover"]):hover {
     border-color: var(--color-primary);
     color: var(--color-primary);
     transform: translateY(-2px);
@@ -301,9 +513,14 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     box-shadow: 0 12px 32px var(--color-shadow);
     margin-bottom: 20px;
 }
+/* --- UPDATED: Selected Poster CSS --- */
 .selected-movie-box img {
     border-radius: 8px;
     box-shadow: 0 8px 24px var(--color-shadow);
+    max-width: 280px; /* Controls max size */
+    width: 100%;
+    margin: 0 auto; /* Centers the image */
+    display: block;
 }
 .selected-movie-box h3 {
     color: var(--color-text-secondary);
@@ -398,203 +615,30 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     font-size: 0.85rem;
     padding: 6px 14px;
 }
-.app-footer-info {
-    text-align: center;
-    color: var(--color-text-secondary);
-    font-size: 0.8rem;
-    border-top: 1px solid var(--color-border);
-    padding-top: 20px;
-    margin-top: 40px;
-}
+/* --- Footer CSS REMOVED --- */
 </style>
 """, unsafe_allow_html=True)
 
 
 # ==========================================================
-#                   10. SIDEBAR CONTENT
+#                   10. APP ENTRY POINT
 # ==========================================================
 
-with st.sidebar:
-    st.header("🔍 Filter Movies")
-    st.markdown("Select genres to find movies you're in the mood for.")
-    selected_genres = st.multiselect(
-        "Filter by genre:",
-        options=all_genres,
-        label_visibility="collapsed"
-    )
-    
-# ==========================================================
-#                   11. MAIN PAGE
-# ==========================================================
+# Initialize variables to None
+movies = None
+similarity = None
+all_genres = None
 
-st.title('CineMatch Movie Recommender')
-st.markdown("---")
-st.header("Choose a Movie You Like")
+try:
+    with st.spinner('Loading movie data... This may take a moment on first load.'):
+        movies, similarity, all_genres = load_data()
+except Exception as e:
+    # This will catch any error during load and display it
+    st.error(f"A critical error occurred during app startup: {e}")
+    st.stop()
 
-# --- Initialize Session State ---
-if 'selected_movie' not in st.session_state:
-    st.session_state.selected_movie = None
-
-# --- Main Selection Area ---
-col1, col2 = st.columns([3, 1])
-with col1:
-    def on_select_change():
-        # only set selected_movie when user picks a real movie from the current filtered list
-        val = st.session_state.movie_selector
-        if val in filtered_movie_titles:
-            st.session_state.selected_movie = val
-        else:
-            st.session_state.selected_movie = None
-
-    # Ensure we build the filtered movie list based on the current genre filter
-    filtered_movies = get_filtered_movies(movies, selected_genres)
-    filtered_movie_titles = sorted(filtered_movies['title'].tolist())
-
-    # Provide a harmless placeholder option when no movies match the filter
-    options_list = filtered_movie_titles if filtered_movie_titles else ["(No movies match filter)"]
-
-    try:
-        current_index = filtered_movie_titles.index(st.session_state.selected_movie) if st.session_state.selected_movie in filtered_movie_titles else 0
-    except Exception:
-        current_index = 0 if options_list else None
-
-    st.selectbox(
-        "Type or select a movie from the dropdown:",
-        options_list,
-        index=current_index if isinstance(current_index, int) else None,
-        placeholder="Select a movie from the list...",
-        key='movie_selector',
-        on_change=on_select_change
-    )
-with col2:
-    def set_random_movie():
-        if filtered_movie_titles:
-            st.session_state.selected_movie = random.choice(filtered_movie_titles)
-        else:
-            st.warning("No movies found for the selected genre filter.")
-    st.button(
-        "🎲 Surprise Me!", 
-        on_click=set_random_movie, 
-        use_container_width=True,
-        help="Pick a random movie from the filtered list"
-    )
-
-# --- Display Selected Movie's Details (FIXED) ---
-if st.session_state.selected_movie:
-    movie_details = get_movie_details(movies, st.session_state.selected_movie)
-    
-    if movie_details:
-        st.markdown("---")
-        st.header(f"You selected: {movie_details['title']}")
-        
-        st.markdown('<div class="selected-movie-box">', unsafe_allow_html=True)
-        col1, col2 = st.columns([1, 2], gap="medium")
-        
-        with col1:
-            # --- FIX 2: Replaced use_container_width=True with width='stretch' ---
-            st.image(movie_details['poster_url'], width='stretch')
-        
-        with col2:
-            genre_html = "".join([f'<span class="tag">{g}</span>' for g in movie_details['genres']])
-            st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
-            
-            st.subheader(f"⭐ {movie_details['rating']:.1f} / 10")
-            
-            st.markdown("<h3>Overview</h3>", unsafe_allow_html=True)
-            st.write(" ".join(movie_details['overview']))
-            
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown("<h3>Cast</h3>", unsafe_allow_html=True)
-                cast_list = ", ".join(movie_details['cast'])
-                st.markdown(f'<div class="detail-list">{cast_list}</div>', unsafe_allow_html=True)
-            with c2:
-                st.markdown("<h3>Director</h3>", unsafe_allow_html=True)
-                st.markdown(f'<div class="detail-list">{movie_details["director"]}</div>', unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # --- Main "Recommend" Button ---
-        if st.button('Show Recommendations', use_container_width=True, type="primary"):
-            st.header(f"Movies You Might Also Like")
-            
-            with st.spinner('Finding similar movies and fetching posters...'):
-                names, posters, overviews, ratings, genres_lists = recommend(st.session_state.selected_movie)
-                
-                if names:
-                    tab1, tab2 = st.tabs(["Top 5 Recommendations", "More to Explore (6-10)"])
-
-                    with tab1:
-                        cols_row1 = st.columns(5, gap="medium")
-                        for i in range(5):
-                            with cols_row1[i]:
-                                st.markdown(f"""
-                                <div class="movie-card">
-                                    <div class="movie-rating">⭐ {ratings[i]:.1f}</div>
-                                    <img src="{posters[i]}" alt="Poster for {names[i]}">
-                                    <div class="card-content">
-                                        <div class="movie-title">{names[i]}</div>
-                                    </div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                                
-                                with st.expander("Details"):
-                                    genre_html = "".join([f'<span class="tag">{g}</span>' for g in genres_lists[i]])
-                                    st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
-                                    st.write(f"**📖 Overview:** {" ".join(overviews[i])}")
-
-                                st.button(
-                                    "Find movies like this", 
-                                    key=f"btn_rec_1_{i}",
-                                    on_click=set_selected_movie,
-                                    args=(names[i],),
-                                    use_container_width=True
-                                )
-                    
-                    with tab2:
-                        st.info("Includes recommendations 6-8 and two 'wildcard' (least similar) picks.")
-                        
-                        cols_row2 = st.columns(5, gap="medium")
-                        for i in range(5, 10):
-                            with cols_row2[i-5]:
-                                st.markdown(f"""
-                                <div class="movie-card">
-                                    <div class="movie-rating">⭐ {ratings[i]:.1f}</div>
-                                    <img src="{posters[i]}" alt="Poster for {names[i]}">
-                                    <div class="card-content">
-                                        <div class="movie-title">{names[i]}</div>
-                                    </div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                                
-                                with st.expander("Details"):
-                                    genre_html = "".join([f'<span class="tag">{g}</span>' for g in genres_lists[i]])
-                                    st.markdown(f'<div class="tags-container">{genre_html}</div>', unsafe_allow_html=True)
-                                    st.write(f"**📖 Overview:** {" ".join(overviews[i])}")
-
-                                st.button(
-                                    "Find movies like this", 
-                                    key=f"btn_rec_2_{i}",
-                                    on_click=set_selected_movie,
-                                    args=(names[i],),
-                                    use_container_width=True
-                                )
-                else:
-                    st.error("Could not find any recommendations.")
-    
-elif not st.session_state.selected_movie and selected_genres:
-    st.info("Select a movie from the filtered list to get started.")
-else:
-    st.info("Select a movie from the dropdown to get started.")
-
-# --- "About" Footer ADDED ---
-st.markdown("---")
-st.markdown(
-    """
-    <p class="app-footer-info">
-    This app recommends movies based on content similarity. The model analyzes movie tags (overview, genres, keywords, cast, and crew) 
-    to find the 10 movies that are most similar to your selection.
-    </p>
-    """, 
-    unsafe_allow_html=True
-)
+# This is the key: If load_data() succeeded, the variables will have data,
+# and the main_app() function will run. If it failed, they will be None,
+# and the app will stop gracefully after showing the error.
+if movies is not None and similarity is not None and all_genres is not None:
+    main_app(movies, similarity, all_genres)
