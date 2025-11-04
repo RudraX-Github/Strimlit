@@ -36,8 +36,6 @@ def main_app(movies, similarity, all_genres):
         )
     # --- END OF SIDEBAR ---
 
-    # --- Popover REMOVED ---
-
     # --- Get filter value from session state ---
     selected_genres = st.session_state.genre_filter
     
@@ -204,7 +202,7 @@ def main_app(movies, similarity, all_genres):
     st.markdown("---")
     st.markdown(
         """
-        <p class.="app-footer">
+        <p class="app-footer">
         This app recommends movies based on content similarity. The model analyzes movie tags (overview, genres, keywords, cast, and crew) 
         to find the 10 movies that are most similar to your selection.
         </p>
@@ -224,7 +222,8 @@ def fetch_poster(movie_id):
         if data.get('posters') and len(data['posters']) > 0:
             file_path = data['posters'][0].get('file_path')
             if file_path:
-                return f"https.://image.tmdb.org/t/p/w500/{file_path}"
+                # --- THIS LINE IS NOW FIXED ---
+                return f"https://image.tmdb.org/t/p/w500/{file_path}"
     except requests.exceptions.RequestException as e:
         print(f"API Error in fetch_poster (ID: {movie_id}): {e}")
     return "https://via.placeholder.com/500x750.png?text=Poster+Not+Available"
@@ -250,7 +249,7 @@ def get_movie_details(movie_df, title):
         return details
     except (IndexError, AttributeError):
         st.error(f"Could not find details for '{title}'.")
-        return None # <-- Added missing return statement
+        return None # <-- Fixed missing return
 
 # --- 5. Helper Function: Get Recommendations ---
 def recommend(movie_title, movies_df, similarity_matrix):
@@ -299,8 +298,7 @@ def recommend(movie_title, movies_df, similarity_matrix):
         print(f"Full Error in recommend: {e}")
         st.error("An unexpected error occurred while generating recommendations.")
         return [], [], [], [], []
-        # --- Removed duplicate error lines ---
-
+        
 # --- 6. Helper Function: Filter Movies by Genre ---
 def get_filtered_movies(movies_df, selected_genres):
     """Filters the movie DataFrame based on selected genres."""
@@ -325,6 +323,7 @@ def load_data():
             return re.sub(r'([a-z])([A-Z])', r'\1 \2', name_string)
         return name_string
     
+    # --- THIS LINE IS NOW FIXED ---
     movies_dict_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/movies_dict.pkl'
     similarity_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/similarity.pkl'
     
@@ -443,7 +442,6 @@ h3 {
     padding-bottom: 8px;
     margin-top: 10px;
 }
-/* --- Popover Styling REMOVED --- */
 
 .stAlert, .stInfo, .stWarning {
     background-color: #262626;
@@ -557,7 +555,7 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
 .movie-card img {
     border-radius: 7px;
     width: 100%;
-    max-height: 320px; /* This is for RECOMMENDATION cards, as you noted */
+    max-height: 320px; /* This is for RECOMMENDATION cards */
     object-fit: cover;
     margin-bottom: 10px;
 }
@@ -641,6 +639,6 @@ except Exception as e:
 
 # This is the key: If load_data() succeeded, the variables will have data,
 # and the main_app() function will run. If it failed, they will be None,
-s# and the app will stop gracefully after showing the error.
+# and the app will stop gracefully after showing the error.
 if movies is not None and similarity is not None and all_genres is not None:
     main_app(movies, similarity, all_genres)
