@@ -27,6 +27,7 @@ def fetch_poster(movie_id):
                 return f"https://image.tmdb.org/t/p/w500/{file_path}"
     except requests.exceptions.RequestException as e:
         print(f"API Error in fetch_poster (ID: {movie_id}): {e}")
+    # --- FIX 1: Corrected the fallback URL ---
     return "https://via.placeholder.com/500x750.png?text=Poster+Not+Available"
 
 
@@ -438,21 +439,29 @@ if 'selected_movie' not in st.session_state:
 col1, col2 = st.columns([3, 1])
 with col1:
     def on_select_change():
-        st.session_state.selected_movie = st.session_state.movie_selector
-        
-    # --- THIS IS THE FIXED BLOCK ---
+        # only set selected_movie when user picks a real movie from the current filtered list
+        val = st.session_state.movie_selector
+        if val in filtered_movie_titles:
+            st.session_state.selected_movie = val
+        else:
+            st.session_state.selected_movie = None
+
+    # Ensure we build the filtered movie list based on the current genre filter
+    filtered_movies = get_filtered_movies(movies, selected_genres)
+    filtered_movie_titles = sorted(filtered_movies['title'].tolist())
+
+    # Provide a harmless placeholder option when no movies match the filter
+    options_list = filtered_movie_titles if filtered_movie_titles else ["(No movies match filter)"]
+
     try:
-        # Try to find the index of the currently selected movie
-        current_index = filtered_movie_titles.index(st.session_state.selected_movie)
-    except Exception: # Changed from ValueError to Exception
-        # If it fails (NameError, ValueError, etc.), just set index to None
-        current_index = None
-    # --- END OF FIX ---
-        
+        current_index = filtered_movie_titles.index(st.session_state.selected_movie) if st.session_state.selected_movie in filtered_movie_titles else 0
+    except Exception:
+        current_index = 0 if options_list else None
+
     st.selectbox(
         "Type or select a movie from the dropdown:",
-        filtered_movie_titles,
-        index=current_index,
+        options_list,
+        index=current_index if isinstance(current_index, int) else None,
         placeholder="Select a movie from the list...",
         key='movie_selector',
         on_change=on_select_change
@@ -482,7 +491,7 @@ if st.session_state.selected_movie:
         col1, col2 = st.columns([1, 2], gap="medium")
         
         with col1:
-            # --- Replaced use_container_width=True with width='stretch' ---
+            # --- FIX 2: Replaced use_container_width=True with width='stretch' ---
             st.image(movie_details['poster_url'], width='stretch')
         
         with col2:
