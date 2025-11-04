@@ -110,7 +110,7 @@ def load_data():
     NOW REQUIRES 'cast' and 'crew' in the pkl file.
     """
     movies_dict_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/movies_dict.pkl'
-    similarity_url = 'https.github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/similarity.pkl'
+    similarity_url = 'https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/Movie%20Recommender%20System/pickle%20files/similarity.pkl'
     
     try:
         response_dict = requests.get(movies_dict_url)
