@@ -2,6 +2,7 @@ import streamlit as st
 import pickle
 import pandas as pd
 import requests
+import time  # <-- 1. IMPORT TIME MODULE
 
 # The token you provided
 API_READ_ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzYmQzMGMxZmQ1YTkwNzdkODNlZGU1NDRiNzE5MGEzMCIsIm5iZiI6MTc2MjE1MjU2NS4wODcwMDAxLCJzdWIiOiI2OTA4NTA3NTMxZTQzNThmNDEwODE4MzUiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.npzY38JNcrTkUKFDZ41XiZs_CmZsSls3oU63vo8gIIo"
@@ -18,7 +19,6 @@ def fetch_poster(movie_id):
         "Authorization": f"Bearer {API_READ_ACCESS_TOKEN}"
     }
     
-    # *** THIS IS THE CHANGE YOU REQUESTED ***
     # Using the /images endpoint
     url = f"https://api.themoviedb.org/3/movie/{movie_id}/images"
     
@@ -42,9 +42,13 @@ def fetch_poster(movie_id):
             return "https://via.placeholder.com/500x750.png?text=No+Poster+Found"
             
     except requests.exceptions.RequestException as e:
-        # You will still get the ConnectionResetError here
-        st.error(f"API Error: {e}")
-        return "https://via.placeholder.com/500x750.png?text=API+Error"
+        # --- MODIFIED ERROR HANDLING ---
+        # Log the full error to the console (for your debugging)
+        print(f"Full API Error in fetch_poster: {e}")
+        # Show a simpler, user-friendly warning in the Streamlit app
+        # We use st.warning since a missing poster isn't a critical failure
+        st.warning(f"Could not fetch poster for one movie (ID: {movie_id}). Service may be unavailable.")
+        return "https://via.placeholder.com/500x750.png?text=Poster+Error"
 
 # --- Helper Function: Get Recommendations ---
 def recommend(movie):
@@ -71,24 +75,39 @@ def recommend(movie):
             recommended_movie_posters.append(fetch_poster(movie_id))
             recommended_movie_names.append(movie_title)
             
+            # <-- 2. UPDATED DELAY -->
+            # Add a small delay (500ms) between API calls to avoid rate limiting
+            time.sleep(0.50)
+            
         return recommended_movie_names, recommended_movie_posters
         
     except IndexError:
         st.error(f"Movie '{movie}' not found in the dataset. Please try another.")
         return [], []
     except Exception as e:
-        st.error(f"An error occurred during recommendation: {e}")
+        # --- MODIFIED ERROR HANDLING ---
+        # Log the full error to the console (for your debugging)
+        print(f"Full Error in recommend: {e}")
+         # Show a simpler, user-friendly error in the Streamlit app
+        st.error("An unexpected error occurred while generating recommendations. Please try again.")
         return [], []
 
 # --- Load Data (from your notebook's output) ---
 try:
-    movies_dict = pickle.load(open('movies_dict.pkl', 'rb'))
+    # --- UPDATED FILE PATHS ---
+    # Using raw strings (r'...') to correctly handle Windows paths
+    movies_dict_path = r'D:\Git_HUB\Strimlit\Movie Recommender System\pickle files\movies_dict.pkl'
+    similarity_path = r'D:\Git_HUB\Strimlit\Movie Recommender System\pickle files\similarity.pkl'
+    
+    movies_dict = pickle.load(open(movies_dict_path, 'rb'))
     movies = pd.DataFrame(movies_dict)
     
-    similarity = pickle.load(open('similarity.pkl', 'rb'))
+    similarity = pickle.load(open(similarity_path, 'rb'))
+    
 except FileNotFoundError:
-    st.error("Error: 'movies_dict.pkl' or 'similarity.pkl' not found.")
-    st.info("Please run the 'Movie.ipynb' notebook to generate the required pickle files.")
+    st.error("Error: One or more pickle files were not found.")
+    st.info("Please check the file paths in app.py to ensure they are correct:")
+    st.code(f"Movies Dict Path: {movies_dict_path}\nSimilarity Path: {similarity_path}", language="text")
     st.stop()
 except Exception as e:
     st.error(f"Error loading pickle files: {e}")
@@ -105,6 +124,68 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# --- INJECT CUSTOM CSS FOR STYLING ---
+st.markdown("""
+<style>
+/* --- Main Title --- */
+h1 {
+    color: #E50914; /* Netflix-like red */
+    font-family: 'Arial', sans-serif;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* --- Sidebar Image --- */
+.stSidebar img {
+    border-radius: 10px;
+}
+
+/* --- Movie Card Container --- */
+.movie-card {
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    height: 100%; /* Important for column alignment */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Align content to top */
+}
+.movie-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+
+/* --- Movie Poster Image --- */
+.movie-card img {
+    border-radius: 7px;
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    margin-bottom: 10px; /* Space between image and title */
+}
+
+/* --- Movie Title Text --- */
+.movie-title {
+    font-size: 1rem; /* 16px */
+    font-weight: 600; /* Semi-bold */
+    color: #111;
+    /* Clamp text to 2 lines to keep cards aligned */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 2.4em; /* Reserve space for 2 lines */
+    line-height: 1.2em;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 with st.sidebar:
     st.image("https://image.tmdb.org/t/p/w500/qJ2tW6WMUDg92VazziDs16NtnLo.jpg", use_container_width=True)
@@ -138,7 +219,7 @@ if st.button('Show Recommendations', use_container_width=True, type="primary"):
     if selected_movie:
         st.header(f"Step 2: Movies You Might Also Like")
         
-        # This spinner will run while the app tries (and fails) to connect
+        # This spinner will run while the app tries to connect
         with st.spinner('Fetching recommendations and posters...'):
             names, posters = recommend(selected_movie)
         
@@ -146,9 +227,16 @@ if st.button('Show Recommendations', use_container_width=True, type="primary"):
                 col1, col2, col3, col4, col5 = st.columns(5, gap="medium")
                 cols = [col1, col2, col3, col4, col5]
                 
+                # --- UPDATED DISPLAY LOOP ---
+                # Use st.markdown to create styled "movie cards"
                 for i in range(len(names)):
                     with cols[i]:
-                        st.text(names[i])
-                        st.image(posters[i], use_container_width=True, caption=f"Poster for {names[i]}")
+                        st.markdown(f"""
+                        <div class="movie-card">
+                            <img src="{posters[i]}" alt="Poster for {names[i]}">
+                            <div class="movie-title">{names[i]}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
     else:
         st.warning("Please select a movie first.")
+
