@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rudresh Chovatiya - Data Science Portfolio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Animated gradient background (from Credit_EDA_Info.html) */
+            background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1a1a2e);
+            background-size: 400% 400%;
+            animation: gradientBG 20s ease infinite;
+            color: #E0E0E0;
+            overflow-x: hidden;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Glassmorphism Card Style */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card-hover:hover {
+             background: rgba(255, 255, 255, 0.1);
+             transform: translateY(-8px);
+             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+             border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Gradient Text (from Credit_EDA_Info.html) */
+        .gradient-text {
+            background: linear-gradient(90deg, #818cf8, #c084fc, #f0abfc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+        }
+
+        /* Scroll-fade-in animation (from Credit_EDA_Info.html) */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Custom scrollbar (from Credit_EDA_Info.html) */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a1a2e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4f46e5;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6366f1;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="sticky top-0 z-50 w-full">
+        <nav class="glass-card max-w-7xl mx-auto m-4 rounded-xl">
+            <div class="flex items-center justify-between p-4 lg:px-8">
+                <a href="#" class="text-xl font-bold gradient-text">Rudresh Chovatiya</a>
+                <div class="flex items-center space-x-6">
+                    <a href="#about" class="hidden md:block text-gray-300 hover:text-white transition-colors">About</a>
+                    <a href="#projects" class="hidden md:block text-gray-300 hover:text-white transition-colors">Projects</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 md:px-8">
+
+        <section id="about" class="min-h-[80vh] flex items-center justify-center text-center py-24 reveal">
+            <div>
+                <h1 class="text-4xl md:text-6xl font-extrabold mb-6">
+                    Data Science <span class="gradient-text">Portfolio</span>
+                </h1>
+                <p class="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto mb-10">
+                    Curious by nature and analytical by training, I channel my experience into decoding data with Python, SQL, and visualization tools like Power BI. I thrive on turning complexity into clarity and making data work smarter for real-world impact.
+                </p>
+                <a href="#projects" class="px-8 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-lg hover:bg-indigo-700 transition-all duration-300 transform hover:scale-105">
+                    View My Projects
+                </a>
+            </div>
+        </section>
+
+        <section id="projects" class="py-24">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-16 reveal">Featured Projects</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+                <div class="glass-card glass-card-hover rounded-2xl flex flex-col overflow-hidden reveal">
+                    <div class="h-48 w-full flex items-center justify-center bg-black/20">
+                        <i data-lucide="brain-circuit" class="w-20 h-20 text-pink-400"></i>
+                    </div>
+                    <div class="p-6 flex flex-col flex-grow">
+                        <div>
+                            <span class="inline-block bg-pink-600/20 text-pink-300 py-1 px-3 rounded-full text-sm font-medium mb-3">NLP & Deep Learning</span>
+                            <h3 class="text-2xl font-bold mb-3">NLP Suite PRO: The Development Story</h3>
+                            <p class="text-gray-300 text-base mb-6">A deep-dive into the iterative development of an NLP toolkit featuring fine-tuning, text generation, and sentiment analysis.</p>
+                        </div>
+                        <div class="mt-auto">
+                            <h4 class="font-semibold text-gray-200 mb-2">Tech Stack:</h4>
+                            <div class="flex flex-wrap gap-2 mb-6">
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Python</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Transformers</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Streamlit</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Tkinter</span>
+                            </div>
+                            <a href="https://raw.githack.com/RudraX-Github/Strimlit/main/NLP%20Suit_Text/NLP%20Suite%20PRO%20-%20The%20Development%20Story.html" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600/80 text-white font-semibold rounded-lg hover:bg-indigo-600 transition-colors">
+                                View Project <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card glass-card-hover rounded-2xl flex flex-col overflow-hidden reveal">
+                    <div class="h-48 w-full flex items-center justify-center bg-black/20">
+                        <i data-lucide="car-front" class="w-20 h-20 text-yellow-400"></i>
+                    </div>
+                    <div class="p-6 flex flex-col flex-grow">
+                        <div>
+                            <span class="inline-block bg-yellow-600/20 text-yellow-300 py-1 px-3 rounded-full text-sm font-medium mb-3">Machine Learning & EDA</span>
+                            <h3 class="text-2xl font-bold mb-3">NYC Taxi Fare Prediction</h3>
+                            <p class="text-gray-300 text-base mb-6">Perform EDA, feature engineering, and build ensemble regression models (Random Forest, Stacking) to predict taxi trip total amounts.</p>
+                        </div>
+                        <div class="mt-auto">
+                            <h4 class="font-semibold text-gray-200 mb-2">Tech Stack:</h4>
+                            <div class="flex flex-wrap gap-2 mb-6">
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Python</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Scikit-learn</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Pandas</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Ensemble Models</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card glass-card-hover rounded-2xl flex flex-col overflow-hidden reveal">
+                    <div class="h-48 w-full flex items-center justify-center bg-black/20">
+                        <i data-lucide="credit-card" class="w-20 h-20 text-indigo-300"></i>
+                    </div>
+                    <div class="p-6 flex flex-col flex-grow">
+                        <div>
+                            <span class="inline-block bg-indigo-600/20 text-indigo-300 py-1 px-3 rounded-full text-sm font-medium mb-3">Data Science & EDA</span>
+                            <h3 class="text-2xl font-bold mb-3">Credit Card EDA Showcase</h3>
+                            <p class="text-gray-300 text-base mb-6">Uncover insights about customer spending, repayment patterns, and segment behavior from credit card data.</p>
+                        </div>
+                        <div class="mt-auto">
+                            <h4 class="font-semibold text-gray-200 mb-2">Tech Stack:</h4>
+                            <div class="flex flex-wrap gap-2 mb-6">
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Python</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Pandas</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Plotly</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">ApexCharts</span>
+                            </div>
+                            <a href="https://raw.githack.com/RudraX-Github/Exploratory-data-analysis-EDA-/main/Credit%20Card-EDA/Credit_EDA_Info.html" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600/80 text-white font-semibold rounded-lg hover:bg-indigo-600 transition-colors">
+                                View Project <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card glass-card-hover rounded-2xl flex flex-col overflow-hidden reveal">
+                    <div class="h-48 w-full flex items-center justify-center bg-black/20">
+                        <i data-lucide="traffic-cone" class="w-20 h-20 text-green-400"></i>
+                    </div>
+                    <div class="p-6 flex flex-col flex-grow">
+                        <div>
+                            <span class="inline-block bg-green-600/20 text-green-300 py-1 px-3 rounded-full text-sm font-medium mb-3">Data Visualization</span>
+                            <h3 class="text-2xl font-bold mb-3">Live Urban Traffic Dashboard</h3>
+                            <p class="text-gray-300 text-base mb-6">Analyze and visualize traffic data to identify patterns, peak hours, and congestion trends for traffic optimization.</p>
+                        </div>
+                        <div class="mt-auto">
+                            <h4 class="font-semibold text-gray-200 mb-2">Tech Stack:</h4>
+                            <div class="flex flex-wrap gap-2 mb-6">
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Pandas</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Plotly</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">ApexCharts</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">YData Profiling</span>
+                            </div>
+                            <a href="https://raw.githack.com/RudraX-Github/Exploratory-data-analysis-EDA-/main/Traffice_data/Traffice_EDA_Info.html" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600/80 text-white font-semibold rounded-lg hover:bg-indigo-600 transition-colors">
+                                View Project <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card glass-card-hover rounded-2xl flex flex-col overflow-hidden reveal">
+                    <div class="h-48 w-full flex items-center justify-center bg-black/20">
+                        <i data-lucide="plane-takeoff" class="w-20 h-20 text-sky-400"></i>
+                    </div>
+                    <div class="p-6 flex flex-col flex-grow">
+                        <div>
+                            <span class="inline-block bg-sky-600/20 text-sky-300 py-1 px-3 rounded-full text-sm font-medium mb-3">Business Intelligence</span>
+                            <h3 class="text-2xl font-bold mb-3">U.S. Airline Delays Dashboard</h3>
+                            <p class="text-gray-300 text-base mb-6">Analyze flight delay patterns, identify root causes of cancellations, and propose data-driven operational improvements.</p>
+                        </div>
+                        <div class="mt-auto">
+                            <h4 class="font-semibold text-gray-200 mb-2">Tech Stack:</h4>
+                            <div class="flex flex-wrap gap-2 mb-6">
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Power BI</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Power Query</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">DAX</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Excel</span>
+                            </div>
+                            <a href="https://raw.githack.com/RudraX-Github/Visualization-Power-BI-/main/US%202023%20Civil%20Flights%2C%20delays%2C%20meteo%20and%20aircrafts/US_Info.html" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600/80 text-white font-semibold rounded-lg hover:bg-indigo-600 transition-colors">
+                                View Project <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card glass-card-hover rounded-2xl flex flex-col overflow-hidden reveal">
+                    <div class="h-48 w-full flex items-center justify-center bg-black/20">
+                        <i data-lucide="shopping-cart" class="w-20 h-20 text-teal-400"></i>
+                    </div>
+                    <div class="p-6 flex flex-col flex-grow">
+                        <div>
+                            <span class="inline-block bg-teal-600/20 text-teal-300 py-1 px-3 rounded-full text-sm font-medium mb-3">Business Intelligence</span>
+                            <h3 class="text-2xl font-bold mb-3">Madhav Ecommerce Dashboard</h3>
+                            <p class="text-gray-300 text-base mb-6">Enhance profitability by addressing regional sales disparities, diversifying products, and optimizing payment methods.</p>
+                        </div>
+                        <div class="mt-auto">
+                            <h4 class="font-semibold text-gray-200 mb-2">Tech Stack:</h4>
+                            <div class="flex flex-wrap gap-2 mb-6">
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Power BI</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Power Query</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">DAX</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Excel</span>
+                            </div>
+                            <a href="https://raw.githack.com/RudraX-Github/Visualization-Power-BI-/main/Madhav%20Ecommarce/Madhav_Info.html" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600/80 text-white font-semibold rounded-lg hover:bg-indigo-600 transition-colors">
+                                View Project <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-card glass-card-hover rounded-2xl flex flex-col overflow-hidden reveal">
+                    <div class="h-48 w-full flex items-center justify-center bg-black/20">
+                        <i data-lucide="bug" class="w-20 h-20 text-red-400"></i>
+                    </div>
+                    <div class="p-6 flex flex-col flex-grow">
+                        <div>
+                            <span class="inline-block bg-red-600/20 text-red-300 py-1 px-3 rounded-full text-sm font-medium mb-3">Web Scraping & Automation</span>
+                            <h3 class="text-2xl font-bold mb-3">Web Scraper Showcase</h3>
+                            <p class="text-gray-300 text-base mb-6">A collection of scrapers for 'Best Law Firms' and 'Marshall County', using parallel processing and a custom GUI.</p>
+                        </div>
+                        <div class="mt-auto">
+                            <h4 class="font-semibold text-gray-200 mb-2">Tech Stack:</h4>
+                            <div class="flex flex-wrap gap-2 mb-6">
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Python</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Selenium</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Multiprocessing</span>
+                                <span class="bg-gray-700/50 text-gray-300 text-xs py-1 px-3 rounded-full">Tkinter</span>
+                            </div>
+                            <a href="https://raw.githack.com/RudraX-Github/Web_Scrapers/main/Scrapper.html" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600/80 text-white font-semibold rounded-lg hover:bg-indigo-600 transition-colors">
+                                View Project <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-16 mt-24 border-t border-white/10">
+        <p class="text-gray-400">&copy; 2025 Rudresh Chovatiya. All projects designed and built from scratch.</p>
+    </footer>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Activate Lucide Icons
+            lucide.createIcons();
+
+            // Scroll Reveal Animation (from Credit_EDA_Info.html)
+            const revealElements = document.querySelectorAll('.reveal');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        // Optional: unobserve after revealing
+                        // observer.unobserve(entry.target);
+                    }
+                });
+            }, {
+                threshold: 0.1 // Trigger when 10% of the element is visible
+            });
+
+            revealElements.forEach(el => {
+                observer.observe(el);
+            });
+        });
+    </script>
+
+</body>
+</html>
