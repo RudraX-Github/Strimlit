@@ -121,19 +121,23 @@ def inject_css():
         /* This targets the Streamlit experimental_dialog component */
         /* --- FIX: Revert CSS to stDialog for older API --- */
         /* --- FIX: Target stExperimentalModal instead --- */
-        div[data-testid="stExperimentalModal"] > div {
-            /* Double the size */
-            width: 700px;
-            max-width: 90vw;
-            /* More transparent + glass effect */
+        /* --- FIX: DELETING all modal/dialog CSS. It's not working. --- */
+        
+        /* --- NEW: Details Panel Style --- */
+        /* This is the container that will hold movie details */
+        .details-panel {
             background: rgba(30,30,30,0.85);
             backdrop-filter: blur(12px); 
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            /* Animation */
+            animation: fadeIn 0.4s ease both;
         }
-        /* --- End Fix 4 --- */
+        /* --- End NEW --- */
 
         button[kind="primary"] {
             background: var(--grad) !important;
@@ -231,6 +235,10 @@ def main():
 
     st.markdown("<div class='cine-title'>🎬 CineMatch</div><div class='cine-sub'>Find your next favorite movie by title, cast, or genre</div>", unsafe_allow_html=True)
 
+    # --- NEW: Details Panel Container ---
+    # This container will be populated when a movie is selected
+    details_container = st.container()
+
     # Search & genre filters
     query = st.text_input("🔎 Search by title / cast / keyword")
     selected_genres = st.multiselect("🎭 Filter genres", options=all_genres)
@@ -249,6 +257,51 @@ def main():
         df = df[df["genres"].apply(lambda gl: any(g in (gl or []) for g in selected_genres))]
 
     st.markdown(f"**Showing {len(df)} results**")
+
+    # --- NEW: Populate Details Panel ---
+    # We move the logic that *was* in the dialog here.
+    # It now renders inside the `details_container` we defined above.
+    if "popup_title" in st.session_state:
+        title = st.session_state.get("popup_title")
+        
+        if movies[movies["title"] == title].empty:
+            handle_popup_close()
+            st.rerun()
+
+        row = movies[movies["title"] == title].iloc[0]
+
+        with details_container:
+            # Apply the CSS class to this container
+            st.markdown("<div class='details-panel'>", unsafe_allow_html=True)
+            
+            st.subheader(f"Details for {row.title}")
+            
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                st.image(fetch_poster(row.movie_id), use_container_width=True)
+            with c2:
+                # --- FIX 3: Rating is now shown in popup ---
+                st.markdown(f"<span class='rating'>⭐ {round(row.vote_average, 1)}</span>", unsafe_allow_html=True)
+                st.markdown("**Overview**")
+                st.write(" ".join(row.overview))
+                st.markdown("**Cast**")
+                st.write(row.cast_display)
+
+            st.markdown("---")
+            b1, b2 = st.columns([3, 1])
+            with b1:
+                st.button("Close", on_click=handle_popup_close, use_container_width=True)
+            with b2:
+                st.button(
+                    "✨ Recommend", 
+                    on_click=handle_recommend_click, 
+                    args=(row.title,), 
+                    use_container_width=True,
+                    type="primary"
+                )
+            
+            # Close the CSS div
+            st.markdown("</div>", unsafe_allow_html=True)
 
     # Grid display
     cols = st.columns(4)
@@ -297,67 +350,10 @@ def main():
         loader.empty()
 
     # --- FIX 3, 4, 5, 6: Floating popup logic (now uses st.experimental_dialog) ---
-    if "popup_title" in st.session_state:
-        title = st.session_state.get("popup_title")
-        
-        if movies[movies["title"] == title].empty:
-            handle_popup_close()
-            st.rerun()
-
-        row = movies[movies["title"] == title].iloc[0]
-        
-        # --- FIX: Changed to st.experimental_dialog to fix TypeError ---
-        # --- FIX: Revert to st.dialog but use the older API (non-context-manager) ---
-        # --- FIX: All dialog/experimental_dialog calls failed. Trying st.experimental_modal ---
-        # --- FIX: All attempts failed. `st.dialog` returns a function. ---
-        # --- Let's try using that returned function as the context manager. ---
-        dialog = st.dialog(f"Details for {title}")
-        
-        # The content must be in a .container() call
-        # --- FIX: Change from `with dialog.container():` to `with dialog:` ---
-        with dialog:
-            # This markdown applies our custom CSS to the dialog
-            st.markdown(
-                """
-                <div class='floating-inner-workaround'>
-                <!-- This empty div just helps Streamlit apply the CSS -->
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-            
-            # --- FIX 6: Content is now the full details ---
-            c1, c2 = st.columns([1, 2])
-            with c1:
-                st.image(fetch_poster(row.movie_id), use_container_width=True)
-            with c2:
-                st.subheader(f"{row.title}")
-                # --- FIX 3: Rating is now shown in popup ---
-                st.markdown(f"<span class='rating'>⭐ {round(row.vote_average, 1)}</span>", unsafe_allow_html=True)
-                st.markdown("**Overview**")
-                st.write(" ".join(row.overview))
-                st.markdown("**Cast**")
-                st.write(row.cast_display)
-
-            st.markdown("---")
-            b1, b2 = st.columns([3, 1])
-            with b1:
-                # The on_click handler (handle_popup_close) already deletes
-                # the session state, so the dialog won't render on rerun.
-                # --- FIX: Must add on_dismiss to the modal call itself ---
-                # The button click will trigger the rerun, and the state will be gone.
-                st.button("Close", on_click=handle_popup_close, use_container_width=True)
-            with b2:
-                # --- FIX 7: Recommend icon button ---
-                st.button(
-                    "✨ Recommend", 
-                    on_click=handle_recommend_click, 
-                    args=(row.title,), 
-                    use_container_width=True,
-                    type="primary"
-                )
-
-    # --- Full page "Selected movie" section REMOVED (FIX 5) ---
+    # --- DELETED ---
+    # All of the `if "popup_title" in st.session_state:` logic
+    # that contained `st.dialog`/`st.modal` is now GONE.
+    # It has been moved into the `details_container` above.
     
     # Recommendations display
     if st.session_state.get("cur_recs"):
