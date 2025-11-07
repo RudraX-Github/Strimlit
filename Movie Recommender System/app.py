@@ -19,7 +19,7 @@ PICKLE_SIM_URL = (
     "Movie%20Recommender%20System/pickle%20files/similarity.pkl"
 )
 
-# --- Styling (cinematic wow + loader ball + entrance animation) ---
+# --- Styling (cinematic wow + loader ball + entrance animation + floating popup) ---
 def inject_css():
     st.markdown(
         """
@@ -36,19 +36,19 @@ def inject_css():
         .poster{width:100%; height:260px; object-fit:cover; border-radius:8px}
         .movie-title{font-weight:700; margin-top:8px; font-size:0.95rem}
         .rating{background:var(--accent); padding:6px 8px; border-radius:8px; color:#fff; font-weight:700; display:inline-block; margin-top:6px}
-        /* compact circular rec button overlay */
         .rec-overlay{position:relative}
         .rec-circle{position:absolute; right:12px; top:12px; width:44px; height:44px; border-radius:50%; background:linear-gradient(90deg,var(--accent),var(--accent2)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; box-shadow:0 8px 20px rgba(229,9,20,0.18); cursor:pointer}
-        .rec-circle:hover{transform:scale(1.06)}
-        /* loader ball */
         .loader-wrap{display:flex;justify-content:center;padding:18px}
         .loader-ball{width:22px;height:22px;border-radius:50%;background:linear-gradient(90deg,var(--accent),var(--accent2));animation:ballBounce 0.9s infinite}
         @keyframes ballBounce{0%{transform:translateY(0)}50%{transform:translateY(-18px)}100%{transform:translateY(0)}}
-        /* recommendation card entrance */
         @keyframes fadeUp{from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:none}}
         .rec-card{animation:fadeUp .32s ease both}
         .muted{color:#c0c0c0}
-        @media (max-width:768px){ .poster{height:200px} .cine-title{font-size:2rem} }
+        /* floating popup styles */
+        .floating-popup{position:fixed; right:24px; top:90px; width:380px; z-index:9999}
+        .floating-inner{background:linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.02)); padding:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); box-shadow:0 20px 40px rgba(0,0,0,0.6)}
+        .popup-close{background:transparent;border:1px solid rgba(255,255,255,0.06); color:#fff; padding:6px 8px; border-radius:8px}
+        @media (max-width:768px){ .poster{height:200px} .cine-title{font-size:2rem} .floating-popup{right:8px; width:320px} }
         </style>
         """,
         unsafe_allow_html=True,
@@ -76,7 +76,6 @@ def load_data() -> Tuple[pd.DataFrame, List[List[float]], List[str]]:
     return movies, similarity, all_genres
 
 # --- Poster fetch ---
-
 def fetch_poster(movie_id: int) -> str:
     url = f"https://api.themoviedb.org/3/movie/{movie_id}/images"
     try:
@@ -92,7 +91,6 @@ def fetch_poster(movie_id: int) -> str:
     return "https://via.placeholder.com/300x450.png?text=No+Poster"
 
 # --- Recommend ---
-
 def recommend(title: str, movies: pd.DataFrame, similarity) -> Tuple[List[str], List[str], List[float], List[str]]:
     matches = movies[movies['title'] == title]
     if matches.empty:
@@ -108,8 +106,7 @@ def recommend(title: str, movies: pd.DataFrame, similarity) -> Tuple[List[str], 
         posters = list(ex.map(fetch_poster, ids))
     return names, posters, ratings, overviews
 
-# --- Handlers (use on_click to make buttons reliable) ---
-
+# --- Handlers ---
 def handle_set_selected(title: str):
     st.session_state['selected_movie'] = title
 
@@ -117,22 +114,27 @@ def handle_recommend_click(title: str, movies, similarity):
     # set a flag — actual computation happens in the main loop so the loader can be shown
     st.session_state['compute_recs_for'] = title
 
-# --- Helpers ---
-
+# --- Helpers for query params ---
 def set_selected_movie_from_query():
     params = st.experimental_get_query_params()
     if 'selected_movie' in params:
         val = params['selected_movie'][0]
         st.session_state['selected_movie'] = val
 
-# --- Main App ---
+def set_popup_from_query():
+    params = st.experimental_get_query_params()
+    if 'popup_movie' in params:
+        val = params['popup_movie'][0]
+        st.session_state['popup_movie'] = val
 
+# --- Main App ---
 def main():
     st.set_page_config(page_title='CineMatch', page_icon='🎬', layout='wide')
     inject_css()
 
     movies, similarity, all_genres = load_data()
     set_selected_movie_from_query()
+    set_popup_from_query()
 
     # Header
     st.markdown("""
@@ -180,12 +182,20 @@ def main():
         col = cols[i % 4]
         with col:
             poster = poster_map.get(row['movie_id'], 'https://via.placeholder.com/300x450.png?text=No+Poster')
-            # render poster with small rec-circle overlay (pure HTML/CSS) but trigger via Streamlit button below using on_click
-            st.markdown(f"<div class='rec-overlay'><div class='movie-card'><img class='poster' src='{poster}' alt='poster' /><div class='movie-title'>{row.title}</div><div class='rating'>⭐ {row.vote_average}</div></div><div class='rec-circle'>✨</div></div>", unsafe_allow_html=True)
-            # Using on_click handlers so buttons are robust across reruns
+            # poster click opens popup via query param
+            link = f"?popup_movie={requests.utils.requote_uri(row.title)}"
+            st.markdown(f"<a class='poster-link' href='{link}'><div class='movie-card'><img class='poster' src='{poster}' alt='poster' /><div class='movie-title'>{row.title}</div></div></a>", unsafe_allow_html=True)
+            # compact row: rating on left, small rec button on right
+            rcol1, rcol2 = st.columns([3,1])
+            with rcol1:
+                st.markdown(f"<div class='rating'>⭐ {row.vote_average}</div>", unsafe_allow_html=True)
+            with rcol2:
+                # small circular rec button (no text) — uses on_click handler
+                st.button('✨', key=f'rec_{row.movie_id}', help='Show recommendations', on_click=handle_recommend_click, args=(row.title, movies, similarity))
+            # keep a Details button for accessibility (opens details section)
             st.button('Details', key=f'detail_{row.movie_id}', on_click=handle_set_selected, args=(row.title,))
-            st.button('Recommend', key=f'rec_{row.movie_id}', on_click=handle_recommend_click, args=(row.title, movies, similarity))
-    # If a recommendation computation was requested, compute it here so loader appears
+
+    # If a recommendation computation was requested, compute it here so the loader can be shown
     if st.session_state.get('compute_recs_for'):
         title_to_compute = st.session_state.get('compute_recs_for')
         loader = st.empty()
@@ -195,6 +205,26 @@ def main():
         # clear the flag
         del st.session_state['compute_recs_for']
         loader.empty()
+
+    # Popup floating card (if poster clicked) — rendered as a fixed-position overlay
+    if st.session_state.get('popup_movie'):
+        pm = st.session_state['popup_movie']
+        pm_row = movies[movies['title'] == pm]
+        if not pm_row.empty:
+            m = pm_row.iloc[0]
+            st.markdown(f"<div class='floating-popup'><div class='floating-inner'><div style='display:flex; gap:12px'><img src='{fetch_poster(m.movie_id)}' style='width:110px; height:160px; object-fit:cover; border-radius:8px' /><div style='flex:1'><div style='font-weight:800; font-size:1rem'>{m.title}</div><div style='color:#cfcfcf; margin-top:6px'>{' '.join(m.overview)[:260]}...</div><div style='margin-top:8px'><span style=\"background:linear-gradient(90deg,var(--accent),var(--accent2)); padding:6px 8px; border-radius:8px; color:#fff; font-weight:700\">⭐ {m.vote_average}</span> <span style=\"margin-left:8px\">
+</span></div></div></div></div></div>", unsafe_allow_html=True)
+            # functional controls below the floating card
+            c1, c2 = st.columns([2,1])
+            with c1:
+                if st.button('Close popup', key='close_popup'):
+                    st.experimental_set_query_params()
+                    if 'popup_movie' in st.session_state:
+                        del st.session_state['popup_movie']
+            with c2:
+                if st.button('Recommendations from popup', key='popup_rec', on_click=handle_recommend_click, args=(m.title, movies, similarity)):
+                    if 'popup_movie' in st.session_state:
+                        del st.session_state['popup_movie']
 
     # Selected movie details area
     if st.session_state.get('selected_movie'):
