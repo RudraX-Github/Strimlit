@@ -99,6 +99,7 @@ def inject_css():
             font-weight: 700;
             display: inline-block;
             margin-top: 6px;
+            font-size: 0.9rem; /* Added for consistency */
         }
         .loader-wrap { display:flex; justify-content:center; padding:18px; }
         .loader-ball {
@@ -116,9 +117,9 @@ def inject_css():
             to { opacity: 1; transform: none; }
         }
 
-        /* --- FIX 4: Floating Card Style (using st.dialog) --- */
-        /* This targets the Streamlit dialog component */
-        div[data-testid="stDialog"] > div {
+        /* --- FIX 4: Floating Card Style (using st.experimental_dialog) --- */
+        /* This targets the Streamlit experimental_dialog component */
+        div[data-testid="stExperimentalDialog"] > div {
             /* Double the size */
             width: 700px;
             max-width: 90vw;
@@ -264,9 +265,11 @@ def main():
                 # Card is just a static markdown box
                 st.markdown(
                     # --- FIX 1: Corrected HTML typo (class='poster') ---
+                    # --- FIX: Added rating to main grid card ---
                     f"<div class='movie-card'>"
                     f"<img class='poster' src='{poster}' />"
                     f"<div class='movie-title'>{row.title}</div>"
+                    f"<span class='rating'>⭐ {round(row.vote_average, 1)}</span>"
                     f"</div>",
                     unsafe_allow_html=True,
                 )
@@ -291,7 +294,7 @@ def main():
         del st.session_state["compute_recs_for"]
         loader.empty()
 
-    # --- FIX 3, 4, 5, 6: Floating popup logic (now uses st.dialog) ---
+    # --- FIX 3, 4, 5, 6: Floating popup logic (now uses st.experimental_dialog) ---
     if "popup_title" in st.session_state:
         title = st.session_state.get("popup_title")
         
@@ -301,8 +304,8 @@ def main():
 
         row = movies[movies["title"] == title].iloc[0]
         
-        # Use st.dialog() for a robust, centered modal
-        with st.dialog(f"Details for {title}", on_dismiss=handle_popup_close):
+        # --- FIX: Changed to st.experimental_dialog to fix TypeError ---
+        with st.experimental_dialog(f"Details for {title}", on_dismiss=handle_popup_close):
             # This markdown applies our custom CSS to the dialog
             st.markdown(
                 """
@@ -320,7 +323,7 @@ def main():
             with c2:
                 st.subheader(f"{row.title}")
                 # --- FIX 3: Rating is now shown in popup ---
-                st.markdown(f"<span class='rating'>⭐ {row.vote_average}</span>", unsafe_allow_html=True)
+                st.markdown(f"<span class='rating'>⭐ {round(row.vote_average, 1)}</span>", unsafe_allow_html=True)
                 st.markdown("**Overview**")
                 st.write(" ".join(row.overview))
                 st.markdown("**Cast**")
@@ -359,7 +362,7 @@ def main():
                         <img src='{recs['posters'][i]}' width='100%' 
                              style='border-radius:8px; object-fit: cover; height: 240px;'/>
                         <div style='font-weight:700;margin-top:8px'>{recs['names'][i]}</div>
-                        <div>⭐ {recs['ratings'][i]}</div>
+                        <div>⭐ {round(recs['ratings'][i], 1)}</div>
                     </div>
                     """,
                     unsafe_allow_html=True,
