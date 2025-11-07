@@ -184,7 +184,7 @@ def recommend(title: str, movies: pd.DataFrame, similarity):
     idx = matches.index[0]
     distances = similarity[idx]
     
-    # --- FIX 6: Get top 8 + 2 wildcards ---
+    # --- FIX 7: Get top 8 + 2 wildcards ---
     sorted_indices = sorted(list(enumerate(distances)), key=lambda x: x[1], reverse=True)
     top_8_indices = sorted_indices[1:9]  # 8 most similar
     bottom_2_indices = sorted_indices[-2:] # 2 least similar
@@ -263,8 +263,9 @@ def main():
             with st.container():
                 # Card is just a static markdown box
                 st.markdown(
+                    # --- FIX 1: Corrected HTML typo (class='poster') ---
                     f"<div class='movie-card'>"
-                    f"<img class'poster' src='{poster}' />"
+                    f"<img class='poster' src='{poster}' />"
                     f"<div class='movie-title'>{row.title}</div>"
                     f"</div>",
                     unsafe_allow_html=True,
@@ -290,7 +291,7 @@ def main():
         del st.session_state["compute_recs_for"]
         loader.empty()
 
-    # --- FIX 3, 4, 5: Floating popup logic (now uses st.dialog) ---
+    # --- FIX 3, 4, 5, 6: Floating popup logic (now uses st.dialog) ---
     if "popup_title" in st.session_state:
         title = st.session_state.get("popup_title")
         
@@ -312,12 +313,13 @@ def main():
                 unsafe_allow_html=True
             )
             
-            # --- FIX 5: Content is now the full details ---
+            # --- FIX 6: Content is now the full details ---
             c1, c2 = st.columns([1, 2])
             with c1:
                 st.image(fetch_poster(row.movie_id), use_container_width=True)
             with c2:
                 st.subheader(f"{row.title}")
+                # --- FIX 3: Rating is now shown in popup ---
                 st.markdown(f"<span class='rating'>⭐ {row.vote_average}</span>", unsafe_allow_html=True)
                 st.markdown("**Overview**")
                 st.write(" ".join(row.overview))
@@ -329,7 +331,7 @@ def main():
             with b1:
                 st.button("Close", on_click=handle_popup_close, use_container_width=True)
             with b2:
-                # --- FIX 5: Recommend icon button ---
+                # --- FIX 7: Recommend icon button ---
                 st.button(
                     "✨ Recommend", 
                     on_click=handle_recommend_click, 
@@ -363,7 +365,7 @@ def main():
                     unsafe_allow_html=True,
                 )
                 # "View" button now opens the popup for the rec
-                st.button("View", key=f"view_{i}", on_click=handle_set_selected, args=(recs["names"][i],), use_container_width=True)
+                st.button("View", key=f"view_{i}", on_click=handle_view_rec_click, args=(recs["names"][i],), use_container_width=True)
 
 if __name__ == "__main__":
     main()
