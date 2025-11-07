@@ -11,11 +11,11 @@ API_READ_ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzYmQzMGMxZmQ1YTkwNzdkOD
 HEADERS = {"accept": "application/json", "Authorization": f"Bearer {API_READ_ACCESS_TOKEN}"}
 
 PICKLE_MOVIES_URL = (
-    "https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/"
+    "https.github.com/RudraX-Github/Strimlit/raw/refs/heads/main/"
     "Movie%20Recommender%20System/pickle%20files/movies_dict.pkl"
 )
 PICKLE_SIM_URL = (
-    "https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/"
+    "https.github.com/RudraX-Github/Strimlit/raw/refs/heads/main/"
     "Movie%20Recommender%20System/pickle%20files/similarity.pkl"
 )
 
@@ -24,7 +24,7 @@ def inject_css():
     st.markdown(
         """
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        @import url('https.fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         :root { --accent:#E50914; --accent2:#ff6b6b; }
         html, body, .stApp {
             background: radial-gradient(900px 600px at 10% 10%, rgba(229,9,20,0.06), transparent),
@@ -56,9 +56,10 @@ def inject_css():
             padding: 8px;
             transition: transform 0.25s, box-shadow 0.25s;
         }
-        .movie-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+        /* Removed the hover effect from the card itself */
+        .movie-card-static:hover {
+            transform: none;
+            box-shadow: none;
         }
         .poster {
             width: 100%;
@@ -70,6 +71,9 @@ def inject_css():
             font-weight: 700;
             margin-top: 8px;
             font-size: 0.95rem;
+            /* Added to ensure consistent height */
+            min-height: 2.8em; 
+            line-height: 1.4em;
         }
         .rating {
             background: var(--accent);
@@ -101,9 +105,16 @@ def inject_css():
             top: 100px;
             width: 380px;
             z-index: 9999;
+            /* Added animation */
+            animation: fadeInPopup 0.3s ease-out;
+        }
+        @keyframes fadeInPopup {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
         }
         .floating-inner {
             background: rgba(30,30,30,0.95);
+            backdrop-filter: blur(10px); /* Added glass effect */
             border: 1px solid rgba(255,255,255,0.05);
             border-radius: 12px;
             padding: 16px;
@@ -113,6 +124,24 @@ def inject_css():
             background: linear-gradient(90deg, var(--accent), var(--accent2)) !important;
             border: none !important;
             color: #fff !important;
+        }
+        /* New button styling for the card */
+        .card-button {
+            background-color: rgba(255, 255, 255, 0.08);
+            color: #ccc;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 8px 0;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s ease;
+            width: 100%;
+            margin-top: 8px;
+        }
+        .card-button:hover {
+            background-color: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
         }
         </style>
         """,
@@ -137,7 +166,7 @@ def load_data() -> Tuple[pd.DataFrame, List[List[float]], List[str]]:
 
 # --- Poster fetch ---
 def fetch_poster(movie_id: int) -> str:
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}/images"
+    url = f"https.api.themoviedb.org/3/movie/{movie_id}/images"
     try:
         res = requests.get(url, headers=HEADERS, timeout=6)
         res.raise_for_status()
@@ -145,10 +174,10 @@ def fetch_poster(movie_id: int) -> str:
         if data.get("posters"):
             fp = data["posters"][0].get("file_path")
             if fp:
-                return f"https://image.tmdb.org/t/p/w500{fp}"
+                return f"https.image.tmdb.org/t/p/w500{fp}"
     except Exception:
         pass
-    return "https://via.placeholder.com/300x450.png?text=No+Poster"
+    return "https.via.placeholder.com/300x450.png?text=No+Poster"
 
 # --- Recommend ---
 def recommend(title: str, movies: pd.DataFrame, similarity):
@@ -166,19 +195,40 @@ def recommend(title: str, movies: pd.DataFrame, similarity):
         posters = list(ex.map(fetch_poster, ids))
     return names, posters, ratings, overviews
 
-# --- Button Handlers ---
+# --- Button Handlers (UPDATED) ---
 def handle_set_selected(title: str):
+    # This now shows the *full page* details section
     st.session_state["selected_movie"] = title
 
-def handle_recommend_click(title: str, movies, similarity):
+def handle_recommend_click(title: str):
+    # This just triggers the recommendation compute
     st.session_state["compute_recs_for"] = title
+
+# --- NEW Handlers for Floating Popup ---
+def handle_popup_create(title: str):
+    # This sets the state to show the floating popup
+    st.session_state["popup_movie_title"] = title
+
+def handle_popup_close():
+    # This closes the floating popup
+    if "popup_movie_title" in st.session_state:
+        del st.session_state["popup_movie_title"]
+
+def handle_recommend_and_close(title: str):
+    # This triggers recs AND closes the popup
+    st.session_state["compute_recs_for"] = title
+    handle_popup_close()
 
 # --- Main App ---
 def main():
     st.set_page_config(page_title="CineMatch", page_icon="🎬", layout="wide")
     inject_css()
 
-    movies, similarity, all_genres = load_data()
+    try:
+        movies, similarity, all_genres = load_data()
+    except Exception as e:
+        st.error(f"Failed to load movie data. Please check your connection. Error: {e}")
+        st.stop()
 
     st.markdown("<div class='cine-title'>🎬 CineMatch</div><div class='cine-sub'>Find your next favorite movie by title, cast, or genre</div>", unsafe_allow_html=True)
 
@@ -211,20 +261,25 @@ def main():
         col = cols[i % 4]
         with col:
             poster = posters[i]
-            link = f"?popup_movie={requests.utils.requote_uri(row.title)}"
+            
+            # --- FIX 1 & 2: Removed <a> tag, rating, and rec button ---
             st.markdown(
-                f"<a href='{link}'><div class='movie-card'>"
+                f"<div class='movie-card movie-card-static'>" # Added 'movie-card-static' to disable hover
                 f"<img class='poster' src='{poster}' />"
                 f"<div class='movie-title'>{row.title}</div>"
-                f"</div></a>",
+                f"</div>",
                 unsafe_allow_html=True,
             )
-            rcol1, rcol2 = st.columns([3, 1])
-            with rcol1:
-                st.markdown(f"<div class='rating'>⭐ {row.vote_average}</div>", unsafe_allow_html=True)
-            with rcol2:
-                st.button("✨", key=f"rec_{row.movie_id}", on_click=handle_recommend_click, args=(row.title, movies, similarity))
-            st.button("Details", key=f"detail_{row.movie_id}", on_click=handle_set_selected, args=(row.title,))
+            
+            # --- FIX 3 & 4: Replaced old buttons with one clean "Details" button ---
+            # This button now triggers the floating popup
+            st.button(
+                "Details", 
+                key=f"popup_{row.movie_id}", 
+                on_click=handle_popup_create, 
+                args=(row.title,),
+                use_container_width=True
+            )
 
     # Compute recs with loader
     if st.session_state.get("compute_recs_for"):
@@ -236,10 +291,16 @@ def main():
         del st.session_state["compute_recs_for"]
         loader.empty()
 
-    # Floating popup on poster click
-    params = st.experimental_get_query_params()
-    if "popup_movie" in params:
-        title = params["popup_movie"][0]
+    # --- FIX 1: Floating popup is now triggered by session_state ---
+    # params = st.experimental_get_query_params()
+    if st.session_state.get("popup_movie_title"):
+        title = st.session_state["popup_movie_title"]
+        
+        # Ensure movie is found, otherwise close popup
+        if movies[movies["title"] == title].empty:
+            handle_popup_close()
+            st.rerun()
+
         row = movies[movies["title"] == title].iloc[0]
         popup_html = f"""
         <div class='floating-popup'>
@@ -248,7 +309,7 @@ def main():
                     <img src='{fetch_poster(row.movie_id)}' style='width:110px; height:160px; object-fit:cover; border-radius:8px'/>
                     <div style='flex:1'>
                         <div style='font-weight:800; font-size:1rem'>{row.title}</div>
-                        <div style='color:#cfcfcf; margin-top:6px'>{' '.join(row.overview)[:220]}...</div>
+                        <div style='color:#cfcfcf; margin-top:6px; font-size: 0.9rem;'>{' '.join(row.overview)[:220]}...</div>
                         <div style='margin-top:8px'>
                             <span class='rating'>⭐ {row.vote_average}</span>
                         </div>
@@ -258,12 +319,32 @@ def main():
         </div>
         """
         st.markdown(popup_html, unsafe_allow_html=True)
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            if st.button("Close popup"):
-                st.experimental_set_query_params()
-        with col2:
-            st.button("Recommendations", on_click=handle_recommend_click, args=(row.title, movies, similarity))
+        
+        # --- Need to place buttons *outside* the markdown ---
+        # We can use st.container() within the popup area, but it's tricky.
+        # Let's add them to the main layout, they will appear *under* the floating box.
+        # This is a Streamlit limitation.
+        # A better way: Use the floating box's container.
+        
+        # This is a hack to put buttons *inside* the floating box area
+        with st.container():
+            st.markdown(
+                """
+                <div class'floating-popup'>
+                    <div class'floating-inner' style='padding-top: 20px; margin-top: 170px;'>
+                        <!-- Buttons will be rendered here by Streamlit -->
+                    </div>
+                </div>
+                """, 
+                unsafe_allow_html=True
+            )
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                # Use the new handler to close the popup
+                st.button("Close popup", on_click=handle_popup_close, use_container_width=True)
+            with col2:
+                # Use the new handler to get recs AND close the popup
+                st.button("Recommendations", on_click=handle_recommend_and_close, args=(row.title,), use_container_width=True)
 
     # Selected movie section
     if st.session_state.get("selected_movie"):
@@ -279,7 +360,7 @@ def main():
             st.write(" ".join(row.overview))
             st.markdown("**Cast**")
             st.write(row.cast_display)
-            st.button("Show Recommendations", on_click=handle_recommend_click, args=(row.title, movies, similarity))
+            st.button("Show Recommendations", on_click=handle_recommend_click, args=(row.title,), key=f"rec_main_{row.movie_id}")
 
     # Recommendations display
     if st.session_state.get("cur_recs"):
@@ -295,7 +376,7 @@ def main():
                     f"<div class='muted'>⭐ {recs['ratings'][i]}</div></div>",
                     unsafe_allow_html=True,
                 )
-                st.button("View", key=f"view_{i}", on_click=handle_set_selected, args=(recs["names"][i],))
+                st.button("View", key=f"view_{i}", on_click=handle_set_selected, args=(recs["names"][i],), use_container_width=True)
 
 if __name__ == "__main__":
     main()
