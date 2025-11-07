@@ -26,25 +26,42 @@ def inject_css():
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        :root { --accent:#E50914; --accent2:#ff6b6b; }
+        :root { 
+            --accent:#E50914; 
+            --accent2:#ff6b6b; 
+            --grad: linear-gradient(90deg, var(--accent), var(--accent2));
+        }
         html, body, .stApp {
             background: radial-gradient(900px 600px at 10% 10%, rgba(229,9,20,0.06), transparent),
                         linear-gradient(180deg, #050505, #0b0b0b);
             color: #fff;
             font-family: 'Inter', sans-serif;
         }
+        
+        /* --- FIX 8: Illusive & Colorful Title --- */
         .cine-title {
             text-align: center;
             font-size: 3rem;
             font-weight: 800;
-            color: var(--accent);
-            margin-bottom: 0;
-            animation: glow 3s infinite;
+            /* Animated Gradient Text */
+            background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent));
+            background-size: 200% auto;
+            color: transparent;
+            background-clip: text;
+            -webkit-background-clip: text;
+            animation: glow 3s infinite, gradient-flow 6s infinite ease-in-out;
         }
         @keyframes glow {
             0%, 100% { text-shadow: 0 0 8px var(--accent); }
             50% { text-shadow: 0 0 24px var(--accent2); }
         }
+        @keyframes gradient-flow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        /* --- End Fix 8 --- */
+
         .cine-sub {
             text-align: center;
             color: #ccc;
@@ -66,8 +83,6 @@ def inject_css():
             height: 260px;
             object-fit: cover;
             border-radius: 8px;
-            /* Poster is clickable */
-            cursor: pointer; 
         }
         .movie-title {
             font-weight: 700;
@@ -88,7 +103,7 @@ def inject_css():
         .loader-wrap { display:flex; justify-content:center; padding:18px; }
         .loader-ball {
             width: 22px; height: 22px; border-radius: 50%;
-            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            background: var(--grad);
             animation: bounce 0.8s infinite;
         }
         @keyframes bounce {
@@ -101,38 +116,24 @@ def inject_css():
             to { opacity: 1; transform: none; }
         }
 
-        /* --- FIX 4: Floating Card Style --- */
-        .floating-popup {
-            position: fixed;
-            /* Center the popup */
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+        /* --- FIX 4: Floating Card Style (using st.dialog) --- */
+        /* This targets the Streamlit dialog component */
+        div[data-testid="stDialog"] > div {
             /* Double the size */
             width: 700px;
             max-width: 90vw;
-            z-index: 9999;
-            animation: fadeInPopup 0.3s ease-out;
-        }
-        @keyframes fadeInPopup {
-            from { opacity: 0; transform: translate(-50%, -45%); }
-            to { opacity: 1; transform: translate(-50%, -50%); }
-        }
-        .floating-inner {
-            /* More transparent */
+            /* More transparent + glass effect */
             background: rgba(30,30,30,0.85);
-            /* Added glass effect */
             backdrop-filter: blur(12px); 
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 12px;
-            padding: 24px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.6);
         }
         /* --- End Fix 4 --- */
 
         button[kind="primary"] {
-            background: linear-gradient(90deg, var(--accent), var(--accent2)) !important;
+            background: var(--grad) !important;
             border: none !important;
             color: #fff !important;
         }
@@ -159,6 +160,7 @@ def load_data() -> Tuple[pd.DataFrame, List[List[float]], List[str]]:
 
 # --- Poster fetch ---
 def fetch_poster(movie_id: int) -> str:
+    # --- FIX 1: Corrected URL ---
     url = f"https://api.themoviedb.org/3/movie/{movie_id}/images"
     try:
         res = requests.get(url, headers=HEADERS, timeout=6)
@@ -171,6 +173,7 @@ def fetch_poster(movie_id: int) -> str:
                 return f"https://image.tmdb.org/t/p/w500{fp}"
     except Exception:
         pass
+    # --- FIX 1: Corrected URL ---
     return "https://via.placeholder.com/300x450.png?text=No+Poster"
 
 # --- Recommend ---
@@ -180,10 +183,11 @@ def recommend(title: str, movies: pd.DataFrame, similarity):
         return [], [], [], []
     idx = matches.index[0]
     distances = similarity[idx]
-    # --- FIX 5: Get top 8 + 2 wildcards ---
+    
+    # --- FIX 6: Get top 8 + 2 wildcards ---
     sorted_indices = sorted(list(enumerate(distances)), key=lambda x: x[1], reverse=True)
-    top_8_indices = sorted_indices[1:9]
-    bottom_2_indices = sorted_indices[-2:]
+    top_8_indices = sorted_indices[1:9]  # 8 most similar
+    bottom_2_indices = sorted_indices[-2:] # 2 least similar
     indices = top_8_indices + bottom_2_indices
     
     ids = [movies.iloc[i[0]].movie_id for i in indices]
@@ -206,7 +210,7 @@ def handle_recommend_click(title: str):
     st.session_state["compute_recs_for"] = title
     handle_popup_close() # Close popup when recs are shown
 
-def handle_set_selected(title: str):
+def handle_view_rec_click(title: str):
     # "View" button on recs will also open the popup
     st.session_state["popup_title"] = title 
 
@@ -246,6 +250,7 @@ def main():
     # Grid display
     cols = st.columns(4)
     ids = df["movie_id"].tolist()[:48]
+    posters = []
     with concurrent.futures.ThreadPoolExecutor() as ex:
         posters = list(ex.map(fetch_poster, ids))
 
@@ -259,7 +264,7 @@ def main():
                 # Card is just a static markdown box
                 st.markdown(
                     f"<div class='movie-card'>"
-                    f"<img class='poster' src='{poster}' />"
+                    f"<img class'poster' src='{poster}' />"
                     f"<div class='movie-title'>{row.title}</div>"
                     f"</div>",
                     unsafe_allow_html=True,
@@ -285,9 +290,9 @@ def main():
         del st.session_state["compute_recs_for"]
         loader.empty()
 
-    # --- FIX 5: Floating popup logic ---
-    if st.session_state.get("popup_title"):
-        title = st.session_state["popup_title"]
+    # --- FIX 3, 4, 5: Floating popup logic (now uses st.dialog) ---
+    if "popup_title" in st.session_state:
+        title = st.session_state.get("popup_title")
         
         if movies[movies["title"] == title].empty:
             handle_popup_close()
@@ -295,18 +300,15 @@ def main():
 
         row = movies[movies["title"] == title].iloc[0]
         
-        # We use st.container() to "trap" the Streamlit elements
-        # inside our custom HTML/CSS popup structure.
-        with st.container():
-            # This markdown creates the floating box
+        # Use st.dialog() for a robust, centered modal
+        with st.dialog(f"Details for {title}", on_dismiss=handle_popup_close):
+            # This markdown applies our custom CSS to the dialog
             st.markdown(
-                f"""
-                <div class='floating-popup'>
-                    <div class='floating-inner'>
-                        <!-- Content will be injected here by Streamlit -->
-                    </div>
+                """
+                <div class='floating-inner-workaround'>
+                <!-- This empty div just helps Streamlit apply the CSS -->
                 </div>
-                """, 
+                """,
                 unsafe_allow_html=True
             )
             
@@ -336,7 +338,7 @@ def main():
                     type="primary"
                 )
 
-    # --- Full page "Selected movie" section REMOVED ---
+    # --- Full page "Selected movie" section REMOVED (FIX 5) ---
     
     # Recommendations display
     if st.session_state.get("cur_recs"):
@@ -350,10 +352,14 @@ def main():
         for i in range(len(recs["names"])):
             with cols[i % 5]:
                 st.markdown(
-                    f"<div class='rec-card'><img src='{recs['posters'][i]}' width='100%' "
-                    f"style='border-radius:8px; object-fit: cover; height: 240px;'/>"
-                    f"<div style='font-weight:700;margin-top:8px'>{recs['names'][i]}</div>"
-                    f"<div>⭐ {recs['ratings'][i]}</div></div>",
+                    f"""
+                    <div class='rec-card'>
+                        <img src='{recs['posters'][i]}' width='100%' 
+                             style='border-radius:8px; object-fit: cover; height: 240px;'/>
+                        <div style='font-weight:700;margin-top:8px'>{recs['names'][i]}</div>
+                        <div>⭐ {recs['ratings'][i]}</div>
+                    </div>
+                    """,
                     unsafe_allow_html=True,
                 )
                 # "View" button now opens the popup for the rec
