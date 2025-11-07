@@ -309,11 +309,13 @@ def main():
         # --- FIX: Changed to st.experimental_dialog to fix TypeError ---
         # --- FIX: Revert to st.dialog but use the older API (non-context-manager) ---
         # --- FIX: All dialog/experimental_dialog calls failed. Trying st.experimental_modal ---
-        # This was the original API for this feature.
-        modal = st.experimental_modal(f"Details for {title}")
+        # --- FIX: All attempts failed. `st.dialog` returns a function. ---
+        # --- Let's try using that returned function as the context manager. ---
+        dialog = st.dialog(f"Details for {title}")
         
         # The content must be in a .container() call
-        with modal.container():
+        # --- FIX: Change from `with dialog.container():` to `with dialog:` ---
+        with dialog:
             # This markdown applies our custom CSS to the dialog
             st.markdown(
                 """
