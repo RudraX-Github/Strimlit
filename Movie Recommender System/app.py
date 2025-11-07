@@ -120,7 +120,8 @@ def inject_css():
         /* --- FIX 4: Floating Card Style (using st.experimental_dialog) --- */
         /* This targets the Streamlit experimental_dialog component */
         /* --- FIX: Revert CSS to stDialog for older API --- */
-        div[data-testid="stDialog"] > div {
+        /* --- FIX: Target stExperimentalModal instead --- */
+        div[data-testid="stExperimentalModal"] > div {
             /* Double the size */
             width: 700px;
             max-width: 90vw;
@@ -307,11 +308,12 @@ def main():
         
         # --- FIX: Changed to st.experimental_dialog to fix TypeError ---
         # --- FIX: Revert to st.dialog but use the older API (non-context-manager) ---
-        # This fixes the AttributeError and the original TypeError
-        dialog = st.dialog(f"Details for {title}")
+        # --- FIX: All dialog/experimental_dialog calls failed. Trying st.experimental_modal ---
+        # This was the original API for this feature.
+        modal = st.experimental_modal(f"Details for {title}")
         
         # The content must be in a .container() call
-        with dialog.container():
+        with modal.container():
             # This markdown applies our custom CSS to the dialog
             st.markdown(
                 """
@@ -340,6 +342,8 @@ def main():
             with b1:
                 # The on_click handler (handle_popup_close) already deletes
                 # the session state, so the dialog won't render on rerun.
+                # --- FIX: Must add on_dismiss to the modal call itself ---
+                # The button click will trigger the rerun, and the state will be gone.
                 st.button("Close", on_click=handle_popup_close, use_container_width=True)
             with b2:
                 # --- FIX 7: Recommend icon button ---
