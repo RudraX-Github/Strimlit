@@ -117,25 +117,35 @@ def inject_css():
             to { opacity: 1; transform: none; }
         }
 
-        /* --- FIX 4: Floating Card Style (using st.experimental_dialog) --- */
-        /* This targets the Streamlit experimental_dialog component */
-        /* --- FIX: Revert CSS to stDialog for older API --- */
-        /* --- FIX: Target stExperimentalModal instead --- */
-        /* --- FIX: DELETING all modal/dialog CSS. It's not working. --- */
+        /* --- NEW: Custom Floating Modal --- */
+        /* This is the full-screen overlay */
+        .modal-overlay {
+            position: fixed; /* Floats above all content */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7); /* Dark background */
+            backdrop-filter: blur(8px); /* Blurs the content behind it */
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000; /* Sits on top */
+            animation: fadeIn 0.2s ease; /* Fades in */
+        }
         
-        /* --- NEW: Details Panel Style --- */
-        /* This is the container that will hold movie details */
+        /* This is the modal content box */
         .details-panel {
-            background: rgba(30,30,30,0.85);
-            backdrop-filter: blur(12px); 
-            -webkit-backdrop-filter: blur(12px);
+            background: rgba(30,30,30,0.9);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 12px;
             padding: 24px;
-            margin-bottom: 24px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-            /* Animation */
-            animation: fadeIn 0.4s ease both;
+            width: 90%;
+            max-width: 700px; /* Max width of the modal */
+            max-height: 90vh; /* Max height */
+            overflow-y: auto; /* Lets the content scroll if needed */
         }
         /* --- End NEW --- */
 
@@ -162,7 +172,7 @@ def load_data() -> Tuple[pd.DataFrame, List[List[float]], List[str]]:
     movies['cast'] = movies['cast'].apply(lambda c: c or [])
     movies['cast_display'] = movies['cast'].apply(lambda c: ', '.join(c) if isinstance(c, list) else str(c))
     movies['genres'] = movies['genres'].apply(lambda g: g or [])
-    all_genres = sorted({g for genre_list in movies['genres'] for g in (genre_list or [])})
+    all_genres = sorted({g for genre_list in movies['genres'] for g in (gl or [])})
     return movies, similarity, all_genres
 
 # --- Poster fetch ---
@@ -233,11 +243,10 @@ def main():
         st.stop()
 
 
-    st.markdown("<div class='cine-title'>🎬 CineMatch</div><div class='cine-sub'>Find your next favorite movie by title, cast, or genre</div>", unsafe_allow_html=True)
+    st.markdown("<div class_name='cine-title'>🎬 CineMatch</div><div class_name='cine-sub'>Find your next favorite movie by title, cast, or genre</div>", unsafe_allow_html=True)
 
-    # --- NEW: Details Panel Container ---
-    # This container will be populated when a movie is selected
-    details_container = st.container()
+    # --- DELETED: Details Panel Container ---
+    # We no longer render the details in the main page flow.
 
     # Search & genre filters
     query = st.text_input("🔎 Search by title / cast / keyword")
@@ -258,50 +267,8 @@ def main():
 
     st.markdown(f"**Showing {len(df)} results**")
 
-    # --- NEW: Populate Details Panel ---
-    # We move the logic that *was* in the dialog here.
-    # It now renders inside the `details_container` we defined above.
-    if "popup_title" in st.session_state:
-        title = st.session_state.get("popup_title")
-        
-        if movies[movies["title"] == title].empty:
-            handle_popup_close()
-            st.rerun()
-
-        row = movies[movies["title"] == title].iloc[0]
-
-        with details_container:
-            # Apply the CSS class to this container
-            st.markdown("<div class='details-panel'>", unsafe_allow_html=True)
-            
-            st.subheader(f"Details for {row.title}")
-            
-            c1, c2 = st.columns([1, 2])
-            with c1:
-                st.image(fetch_poster(row.movie_id), use_container_width=True)
-            with c2:
-                # --- FIX 3: Rating is now shown in popup ---
-                st.markdown(f"<span class='rating'>⭐ {round(row.vote_average, 1)}</span>", unsafe_allow_html=True)
-                st.markdown("**Overview**")
-                st.write(" ".join(row.overview))
-                st.markdown("**Cast**")
-                st.write(row.cast_display)
-
-            st.markdown("---")
-            b1, b2 = st.columns([3, 1])
-            with b1:
-                st.button("Close", on_click=handle_popup_close, use_container_width=True)
-            with b2:
-                st.button(
-                    "✨ Recommend", 
-                    on_click=handle_recommend_click, 
-                    args=(row.title,), 
-                    use_container_width=True,
-                    type="primary"
-                )
-            
-            # Close the CSS div
-            st.markdown("</div>", unsafe_allow_html=True)
+    # --- DELETED: Populate Details Panel ---
+    # This logic is moved to the end of the `main` function.
 
     # Grid display
     cols = st.columns(4)
@@ -349,12 +316,6 @@ def main():
         del st.session_state["compute_recs_for"]
         loader.empty()
 
-    # --- FIX 3, 4, 5, 6: Floating popup logic (now uses st.experimental_dialog) ---
-    # --- DELETED ---
-    # All of the `if "popup_title" in st.session_state:` logic
-    # that contained `st.dialog`/`st.modal` is now GONE.
-    # It has been moved into the `details_container` above.
-    
     # Recommendations display
     if st.session_state.get("cur_recs"):
         recs = st.session_state["cur_recs"]
@@ -379,6 +340,68 @@ def main():
                 )
                 # "View" button now opens the popup for the rec
                 st.button("View", key=f"view_{i}", on_click=handle_view_rec_click, args=(recs["names"][i],), use_container_width=True)
+
+    # --- NEW: Custom Floating Modal Logic ---
+    # This is now at the END of the main function.
+    # If "popup_title" is set, it will render this *on top* of everything above.
+    if "popup_title" in st.session_state:
+        title = st.session_state.get("popup_title")
+        
+        if movies[movies["title"] == title].empty:
+            handle_popup_close()
+            st.rerun()
+
+        row = movies[movies["title"] == title].iloc[0]
+
+        # We inject the HTML for the overlay and the panel.
+        # This is a bit of a hack: we open tags in one st.markdown call,
+        # render Streamlit components, then close tags in another call.
+        st.markdown(
+            """
+            <div class="modal-overlay">
+                <div class="details-panel">
+            """, 
+            unsafe_allow_html=True
+        )
+        
+        # --- Render all the modal content using Streamlit components ---
+        st.subheader(f"{row.title}")
+        
+        c1, c2 = st.columns([1, 2])
+        with c1:
+            st.image(fetch_poster(row.movie_id), use_container_width=True)
+        with c2:
+            st.markdown(f"<span class='rating'>⭐ {round(row.vote_average, 1)}</span>", unsafe_allow_html=True)
+            st.markdown("**Overview**")
+            st.write(" ".join(row.overview))
+            st.markdown("**Cast**")
+            st.write(row.cast_display)
+
+        st.markdown("---")
+        b1, b2 = st.columns([3, 1])
+        with b1:
+            # This "Close" button works by deleting the session state
+            # and re-running the script, so this whole block is skipped.
+            st.button("Close", on_click=handle_popup_close, use_container_width=True)
+        with b2:
+            # This "Recommend" button does the same, but also sets
+            # the state for the recommendations to be computed.
+            st.button(
+                "✨ Recommend", 
+                on_click=handle_recommend_click, 
+                args=(row.title,), 
+                use_container_width=True,
+                type="primary"
+            )
+        
+        # --- Close the HTML tags ---
+        st.markdown(
+            """
+                </div> <!-- details-panel -->
+            </div> <!-- modal-overlay -->
+            """, 
+            unsafe_allow_html=True
+        )
 
 if __name__ == "__main__":
     main()
