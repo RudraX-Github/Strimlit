@@ -207,9 +207,8 @@ def handle_recommend_click(title: str):
     handle_popup_close() # Close popup when recs are shown
 
 def handle_set_selected(title: str):
-    # This function is no longer needed for details, 
-    # but we keep it for the "View" button on recs.
-    st.session_state["popup_title"] = title # Re-use popup for recs
+    # "View" button on recs will also open the popup
+    st.session_state["popup_title"] = title 
 
 # --- Main App ---
 def main():
@@ -257,6 +256,7 @@ def main():
             
             # --- FIX 2 & 3: Card is now a container with a button ---
             with st.container():
+                # Card is just a static markdown box
                 st.markdown(
                     f"<div class='movie-card'>"
                     f"<img class='poster' src='{poster}' />"
@@ -298,6 +298,7 @@ def main():
         # We use st.container() to "trap" the Streamlit elements
         # inside our custom HTML/CSS popup structure.
         with st.container():
+            # This markdown creates the floating box
             st.markdown(
                 f"""
                 <div class='floating-popup'>
