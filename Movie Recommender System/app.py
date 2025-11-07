@@ -19,7 +19,7 @@ PICKLE_SIM_URL = (
     "Movie%20Recommender%20System/pickle%20files/similarity.pkl"
 )
 
-# --- Styling (cinematic wow + loader ball) ---
+# --- Styling (cinematic wow + loader ball + entrance animation) ---
 def inject_css():
     st.markdown(
         """
@@ -30,21 +30,24 @@ def inject_css():
         .hero {text-align:center; padding-top:8px}
         .cine-title{font-size:3rem; color:var(--accent); font-weight:800; letter-spacing:1px; margin-bottom:6px;}
         .cine-sub{color:#cfcfcf; margin-bottom:18px}
-        /* neon underline */
         .cine-title:after{content:''; display:block; height:6px; width:180px; margin:12px auto 0; border-radius:999px; background:linear-gradient(90deg,var(--accent),var(--accent2)); filter:blur(10px); opacity:0.9}
-        /* cards */
-        .movie-card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); padding:8px; border-radius:12px; transition:transform .22s, box-shadow .22s}
+        .movie-card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); padding:8px; border-radius:12px; transition:transform .22s, box-shadow .22s, opacity .4s}
         .movie-card:hover{transform:translateY(-8px); box-shadow:0 20px 40px rgba(0,0,0,0.6)}
         .poster{width:100%; height:260px; object-fit:cover; border-radius:8px}
         .movie-title{font-weight:700; margin-top:8px; font-size:0.95rem}
         .rating{background:var(--accent); padding:6px 8px; border-radius:8px; color:#fff; font-weight:700; display:inline-block; margin-top:6px}
-        /* compact recommendations button */
-        .rec-btn{display:inline-block; padding:6px 8px; background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#fff; border-radius:999px; font-weight:700; cursor:pointer; border:none}
+        /* compact circular rec button overlay */
+        .rec-overlay{position:relative}
+        .rec-circle{position:absolute; right:12px; top:12px; width:44px; height:44px; border-radius:50%; background:linear-gradient(90deg,var(--accent),var(--accent2)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; box-shadow:0 8px 20px rgba(229,9,20,0.18); cursor:pointer}
+        .rec-circle:hover{transform:scale(1.06)}
         /* loader ball */
         .loader-wrap{display:flex;justify-content:center;padding:18px}
         .loader-ball{width:22px;height:22px;border-radius:50%;background:linear-gradient(90deg,var(--accent),var(--accent2));animation:ballBounce 0.9s infinite}
         @keyframes ballBounce{0%{transform:translateY(0)}50%{transform:translateY(-18px)}100%{transform:translateY(0)}}
-        /* responsive tweaks */
+        /* recommendation card entrance */
+        @keyframes fadeUp{from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:none}}
+        .rec-card{animation:fadeUp .32s ease both}
+        .muted{color:#c0c0c0}
         @media (max-width:768px){ .poster{height:200px} .cine-title{font-size:2rem} }
         </style>
         """,
@@ -105,6 +108,15 @@ def recommend(title: str, movies: pd.DataFrame, similarity) -> Tuple[List[str], 
         posters = list(ex.map(fetch_poster, ids))
     return names, posters, ratings, overviews
 
+# --- Handlers (use on_click to make buttons reliable) ---
+
+def handle_set_selected(title: str):
+    st.session_state['selected_movie'] = title
+
+def handle_recommend_click(title: str, movies, similarity):
+    # set a flag — actual computation happens in the main loop so the loader can be shown
+    st.session_state['compute_recs_for'] = title
+
 # --- Helpers ---
 
 def set_selected_movie_from_query():
@@ -135,7 +147,7 @@ def main():
 
     with search_col:
         query = st.text_input('Search by title / cast / keyword', value=st.session_state.get('last_query',''))
-        if query:
+        if query is not None:
             st.session_state['last_query'] = query
     with genre_col:
         selected_genres = st.multiselect('Filter genres (optional)', options=all_genres, default=st.session_state.get('genres',[]), key='genres')
@@ -154,7 +166,6 @@ def main():
         return df
 
     results = compute_results()
-
     st.markdown(f"**Showing {len(results)} results**")
 
     # Display grid of results (single output area)
@@ -169,23 +180,23 @@ def main():
         col = cols[i % 4]
         with col:
             poster = poster_map.get(row['movie_id'], 'https://via.placeholder.com/300x450.png?text=No+Poster')
-            st.markdown(f"<div class='movie-card'><img class='poster' src='{poster}' alt='poster' /><div class='movie-title'>{row.title}</div><div class='rating'>⭐ {row.vote_average}</div></div>", unsafe_allow_html=True)
-            # compact recommendation trigger and details trigger
-            c1, c2 = st.columns([3,1])
-            with c1:
-                if st.button('Details', key=f'detail_{row.movie_id}'):
-                    st.session_state['selected_movie'] = row.title
-            with c2:
-                # small circular rec button
-                if st.button('✨', key=f'rec_{row.movie_id}', help='Show recommendations for this movie'):
-                    # show loader ball while computing
-                    loader = st.empty()
-                    loader.markdown("<div class='loader-wrap'><div class='loader-ball'></div></div>", unsafe_allow_html=True)
-                    names, posters_rec, ratings_rec, overviews_rec = recommend(row.title, movies, similarity)
-                    loader.empty()
-                    st.session_state['cur_recs'] = {'names':names,'posters':posters_rec,'ratings':ratings_rec,'overviews':overviews_rec}
+            # render poster with small rec-circle overlay (pure HTML/CSS) but trigger via Streamlit button below using on_click
+            st.markdown(f"<div class='rec-overlay'><div class='movie-card'><img class='poster' src='{poster}' alt='poster' /><div class='movie-title'>{row.title}</div><div class='rating'>⭐ {row.vote_average}</div></div><div class='rec-circle'>✨</div></div>", unsafe_allow_html=True)
+            # Using on_click handlers so buttons are robust across reruns
+            st.button('Details', key=f'detail_{row.movie_id}', on_click=handle_set_selected, args=(row.title,))
+            st.button('Recommend', key=f'rec_{row.movie_id}', on_click=handle_recommend_click, args=(row.title, movies, similarity))
+    # If a recommendation computation was requested, compute it here so loader appears
+    if st.session_state.get('compute_recs_for'):
+        title_to_compute = st.session_state.get('compute_recs_for')
+        loader = st.empty()
+        loader.markdown("<div class='loader-wrap'><div class='loader-ball'></div></div>", unsafe_allow_html=True)
+        names, posters_rec, ratings_rec, overviews_rec = recommend(title_to_compute, movies, similarity)
+        st.session_state['cur_recs'] = {'names':names,'posters':posters_rec,'ratings':ratings_rec,'overviews':overviews_rec}
+        # clear the flag
+        del st.session_state['compute_recs_for']
+        loader.empty()
 
-    # Selected movie details area (right below grid)
+    # Selected movie details area
     if st.session_state.get('selected_movie'):
         sel = st.session_state['selected_movie']
         mdf = movies[movies['title'] == sel]
@@ -201,14 +212,9 @@ def main():
                 st.write(' '.join(m.overview))
                 st.markdown('**Cast**')
                 st.write(m.cast_display)
-                if st.button('Show Recommendations for this movie', key='detail_rec_btn'):
-                    loader = st.empty()
-                    loader.markdown("<div class='loader-wrap'><div class='loader-ball'></div></div>", unsafe_allow_html=True)
-                    names, posters_rec, ratings_rec, overviews_rec = recommend(m.title, movies, similarity)
-                    loader.empty()
-                    st.session_state['cur_recs'] = {'names':names,'posters':posters_rec,'ratings':ratings_rec,'overviews':overviews_rec}
+                st.button('Show Recommendations for this movie', key='detail_rec_btn', on_click=handle_recommend_click, args=(m.title, movies, similarity))
 
-    # Render recommendations panel
+    # Render recommendations panel with entrance animation
     if st.session_state.get('cur_recs'):
         recs = st.session_state['cur_recs']
         st.markdown('---')
@@ -216,15 +222,12 @@ def main():
         cols = st.columns(4)
         for i in range(len(recs['names'])):
             with cols[i % 4]:
-                st.image(recs['posters'][i], width=160)
-                st.markdown(f"**{recs['names'][i]}**")
-                st.markdown(f"<div class='muted'>⭐ {recs['ratings'][i]}</div>", unsafe_allow_html=True)
-                if st.button('View', key=f'viewrec_{i}'):
-                    st.session_state['selected_movie'] = recs['names'][i]
+                st.markdown(f"<div class='rec-card'><img src='{recs['posters'][i]}' width='160' style='border-radius:8px' /><div style='font-weight:700;margin-top:8px'>{recs['names'][i]}</div><div class='muted'>⭐ {recs['ratings'][i]}</div></div>", unsafe_allow_html=True)
+                st.button('View', key=f'viewrec_{i}', on_click=handle_set_selected, args=(recs['names'][i],))
 
     # Footer notes
     st.markdown('---')
-    st.markdown('**Notes:** single unified output supports searching by name, genre, or both. Compact recommendation buttons (✨) and a loader-ball animation give feedback while recommendations compute.')
+    st.markdown('**Notes:** single unified output supports searching by name, genre, or both. Compact recommendation overlay and animated effects added.')
 
 if __name__ == '__main__':
     main()
