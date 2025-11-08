@@ -207,14 +207,7 @@ h1 {color:var(--primary); text-align:center; font-weight: 700;}
 h3 {color: var(--text); font-weight: 600;}
 h4 {color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--primary); padding-bottom: 5px; margin-top: 24px;}
 
-/* Sidebar glassmorphism */
-[data-testid="stSidebar"] > div:first-child {
-    background: var(--card-bg);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-right: 1px solid var(--card-border);
-    box-shadow: 0 4px 30px var(--shadow);
-}
+/* Sidebar glassmorphism - [REMOVED] - No longer needed */
 
 /* Selected movie container glassmorphism */
 .selected-movie-container {
@@ -360,8 +353,8 @@ def main():
         st.session_state.f_search = ""
     if 'f_genres' not in st.session_state:
         st.session_state.f_genres = []
-    if 'f_rating_idx' not in st.session_state:
-        st.session_state.f_rating_idx = 0
+    # if 'f_rating_idx' not in st.session_state: # Removed
+    #     st.session_state.f_rating_idx = 0 # Removed
 
     # --- Handle query param for clickable cards ---
     query_params = st.experimental_get_query_params()
@@ -392,20 +385,20 @@ def main():
     # [REMOVED] The entire 'with st.sidebar:' block is gone.
     
     # --- New Filter Form (replaces sidebar) ---
-    rating_options = [0, 6, 7, 8, 9]
-    def format_rating(x):
-        return "Any Rating" if x == 0 else f"{x}+ Rating"
+    # rating_options = [0, 6, 7, 8, 9] # Removed
+    # def format_rating(x): # Removed
+    #     return "Any Rating" if x == 0 else f"{x}+ Rating" # Removed
 
-    with st.expander("Filters", expanded=True):
+    with st.expander("Filters", expanded=False): # Changed to expanded=False
         with st.form(key="filter_form"):
             st.text_input("Search by title or actor...", key='f_search')
             st.multiselect("Filter by Genres", options=all_genres, key='f_genres')
-            st.selectbox(
-                "Minimum Rating", 
-                options=rating_options, 
-                format_func=format_rating, 
-                key='f_rating_idx'
-            )
+            # st.selectbox( # Removed
+            #     "Minimum Rating", 
+            #     options=rating_options, 
+            #     format_func=format_rating, 
+            #     key='f_rating_idx'
+            # )
             
             f_col1, f_col2 = st.columns(2)
             with f_col1:
@@ -417,11 +410,11 @@ def main():
     if reset_clicked:
         st.session_state.f_search = ""
         st.session_state.f_genres = []
-        st.session_state.f_rating_idx = 0
+        # st.session_state.f_rating_idx = 0 # Removed
         st.session_state.selected_movie = None
         # We don't need to rerun, the script will continue and use these cleared values
 
-    def filter_movies(df, search_query, genres, rating):
+    def filter_movies(df, search_query, genres): # Removed rating parameter
         """Filters the main dataframe based on new form controls."""
         out = df.copy()
         
@@ -437,20 +430,20 @@ def main():
         if genres:
             out = out[out['genres'].apply(lambda gl: any(g in gl for g in genres))]
         
-        # 3. Filter by rating
-        if rating > 0:
-            out = out[out['vote_average'] >= rating]
+        # 3. Filter by rating - [REMOVED]
+        # if rating > 0:
+        #     out = out[out['vote_average'] >= rating]
         return out
 
-    # Get the actual rating value from the state index
-    min_rating_val = rating_options[st.session_state.f_rating_idx]
+    # Get the actual rating value from the state index - [REMOVED]
+    # min_rating_val = rating_options[st.session_state.f_rating_idx]
 
     # Call the filter function with values from session state
     filtered_df = filter_movies(
         movies, 
         st.session_state.f_search, 
-        st.session_state.f_genres, 
-        min_rating_val
+        st.session_state.f_genres
+        # min_rating_val # Removed
     )
     titles = sorted(filtered_df['title'].tolist())
 
