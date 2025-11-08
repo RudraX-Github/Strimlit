@@ -354,6 +354,14 @@ def main():
         st.session_state.selected_movie = None
     if 'surprise_clicked' not in st.session_state:
         st.session_state.surprise_clicked = False
+    
+    # --- Add session state for new filters ---
+    if 'f_search' not in st.session_state:
+        st.session_state.f_search = ""
+    if 'f_genres' not in st.session_state:
+        st.session_state.f_genres = []
+    if 'f_rating_idx' not in st.session_state:
+        st.session_state.f_rating_idx = 0
 
     # --- Handle query param for clickable cards ---
     query_params = st.experimental_get_query_params()
@@ -381,23 +389,69 @@ def main():
     st.title("CineMatch — Movie Recommender")
     
     # --- Sidebar ---
-    with st.sidebar:
-        st.header("Filters")
-        selected_genres = st.multiselect("Filter by Genres", options=all_genres)
-        # min_rating = st.slider("Minimum Rating", 0.0, 10.0, 0.0, 0.1) # Removed
-        st.write("---")
-        st.info("Tip: Pick a genre, then press 'Surprise Me!' to get a random pick matching your filters.") # Updated text
+    # [REMOVED] The entire 'with st.sidebar:' block is gone.
+    
+    # --- New Filter Form (replaces sidebar) ---
+    rating_options = [0, 6, 7, 8, 9]
+    def format_rating(x):
+        return "Any Rating" if x == 0 else f"{x}+ Rating"
 
-    def filter_movies(df):
-        """Filters the main dataframe based on sidebar controls."""
+    with st.expander("Filters", expanded=True):
+        with st.form(key="filter_form"):
+            st.text_input("Search by title or actor...", key='f_search')
+            st.multiselect("Filter by Genres", options=all_genres, key='f_genres')
+            st.selectbox(
+                "Minimum Rating", 
+                options=rating_options, 
+                format_func=format_rating, 
+                key='f_rating_idx'
+            )
+            
+            f_col1, f_col2 = st.columns(2)
+            with f_col1:
+                apply_clicked = st.form_submit_button("Apply Filters", use_container_width=True)
+            with f_col2:
+                reset_clicked = st.form_submit_button("Reset Filters", use_container_width=True)
+
+    # Handle form reset
+    if reset_clicked:
+        st.session_state.f_search = ""
+        st.session_state.f_genres = []
+        st.session_state.f_rating_idx = 0
+        st.session_state.selected_movie = None
+        # We don't need to rerun, the script will continue and use these cleared values
+
+    def filter_movies(df, search_query, genres, rating):
+        """Filters the main dataframe based on new form controls."""
         out = df.copy()
-        if selected_genres:
-            out = out[out['genres'].apply(lambda gl: any(g in gl for g in selected_genres))]
-        # if min_rating > 0: # Removed
-        #     out = out[out['vote_average'] >= min_rating] # Removed
+        
+        # 1. Filter by search query (title or cast)
+        if search_query:
+            sq = search_query.lower()
+            out = out[
+                out['title'].str.contains(sq, case=False) | 
+                out['cast'].apply(lambda cast_list: any(sq in actor.lower() for actor in cast_list))
+            ]
+
+        # 2. Filter by genres
+        if genres:
+            out = out[out['genres'].apply(lambda gl: any(g in gl for g in genres))]
+        
+        # 3. Filter by rating
+        if rating > 0:
+            out = out[out['vote_average'] >= rating]
         return out
 
-    filtered_df = filter_movies(movies)
+    # Get the actual rating value from the state index
+    min_rating_val = rating_options[st.session_state.f_rating_idx]
+
+    # Call the filter function with values from session state
+    filtered_df = filter_movies(
+        movies, 
+        st.session_state.f_search, 
+        st.session_state.f_genres, 
+        min_rating_val
+    )
     titles = sorted(filtered_df['title'].tolist())
 
     # --- Callbacks for dynamic updates ---
