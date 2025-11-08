@@ -32,10 +32,10 @@ def format_name(name_string):
     """Formats 'CamelCase' to 'Camel Case'."""
     if isinstance(name_string, str):
         return re.sub(r'([a-z])([A-Z])', r'\1 \2', name_string)
-    return name_string
-
-def fetch_poster(movie_id: int) -> str:
-    """Fetches movie poster URL from TMDB API."""
+def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix) -> Tuple[List[str], List[str], List[str], List[float], List[List[str]], List[str]]:
+    """Gets top 10 recommendations (8 similar, 2 opposite)."""
+    if movies_df is None or similarity_matrix is None:
+        return [], [], [], [], [], []
     try:
         if movie_id is None or movie_id == -1:
             raise ValueError("Invalid movie id")
@@ -153,7 +153,7 @@ def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix
                 if len(picks) >= 10:
                     break
 
-        movie_ids, names, overviews, ratings, genres_lists = [], [], [], [], []
+        movie_ids, names, overviews, ratings, genres_lists, directors = [], [], [], [], [], []
         for i, score in picks:
             r = movies_df.iloc[int(i)]
             movie_ids.append(int(r.get('movie_id', -1)))
@@ -168,15 +168,16 @@ def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix
             except Exception:
                 ratings.append(0.0)
             genres_lists.append(r.get('genres', []) or [])
+            directors.append(r.get('director', 'N/A') or 'N/A') # Add director
 
         # Fetch posters in parallel
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
             posters = list(ex.map(fetch_poster, movie_ids))
 
-        return names, posters, overviews, ratings, genres_lists
+        return names, posters, overviews, ratings, genres_lists, directors
     except Exception as e:
         st.error(f"Error getting recommendations: {e}")
-        return [], [], [], [], []
+        return [], [], [], [], [], []
 
 # --- CSS (Glassmorphism) ---
 PAGE_CSS = """<style>
@@ -258,6 +259,7 @@ h4 {color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--prim
   font-size: 15px;
   flex-grow: 1; /* Pushes tags to bottom */
   line-height: 1.3;
+  margin-bottom: 8px; /* Added space for overview */
 }
 .movie-rating {
   position: absolute;
@@ -293,6 +295,27 @@ h4 {color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--prim
   display: block;
   line-height: 1.4;
   font-weight: 400;
+}
+/* New classes for richer card */
+.movie-overview {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 10px;
+    font-weight: 400;
+    /* Line clamp to 3 lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.movie-director {
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+    border-top: 1px solid var(--card-border);
+    padding-top: 8px;
+    margin-top: auto; /* Pushes this to the bottom before tags */
 }
 /* Ensure tag container has a min height to prevent layout shift */
 .tag-container {
@@ -512,7 +535,7 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True) # Close the glassmorphism div
 
         # --- RECOMMENDATIONS (No Button) ---
-        names, posters, overviews, ratings, genres_lists = recommend_top10(selected, movies, similarity)
+        names, posters, overviews, ratings, genres_lists, directors = recommend_top10(selected, movies, similarity)
         
         if not names:
             st.error("No recommendations found — try another movie.")
@@ -541,12 +564,15 @@ def main():
                 rating_str = f"{ratings[i]:.1f}"
                 wildcard_html = '<span class="tag" style="background:#7c3aed">Wildcard</span>' if is_wildcard else ""
                 
-                # Original card HTML
+                # --- Updated Card HTML ---
+                # Added overview and director, inspired by CineMatch.html
                 card_html = f"""
                 <div class="movie-card">
                     <div class="movie-rating">⭐ {rating_str}</div>
                     <img src="{posters[i]}" alt="{name}">
                     <div class="movie-title">{name}</div>
+                    <div class="movie-overview">{overviews[i]}</div>
+                    <div class="movie-director">Director: {directors[i]}</div>
                     <div class="small-muted">{small_muted}</div>
                     <div class="tag-container">{genre_tags} {wildcard_html}</div>
                 </div>
