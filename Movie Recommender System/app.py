@@ -11,6 +11,7 @@ import random
 import concurrent.futures
 from typing import Tuple, List
 import streamlit.components.v1 as components
+import urllib.parse # Added for URL encoding
 
 # --- Configuration ---
 # WARNING: This is a read-access token. For production, secure this properly.
@@ -190,6 +191,10 @@ PAGE_CSS = """<style>
   --shadow: rgba(0, 0, 0, 0.3);
   --wildcard: #7c3aed; /* Purple for wildcard */
 }
+a { /* Ensure links don't have default styling */
+    text-decoration: none;
+    color: inherit;
+}
 html, body, .stApp {
   background: var(--bg);
   background-image: radial-gradient(circle at 20% 20%, rgba(229, 9, 20, 0.15), var(--bg) 35%),
@@ -344,11 +349,28 @@ def main():
     st.set_page_config(page_title="CineMatch Recommender", page_icon="🎬", layout="wide")
     st.markdown(PAGE_CSS, unsafe_allow_html=True)
 
-    # Initialize session state
+    # Initialize session state (MUST happen before query param check)
     if 'selected_movie' not in st.session_state:
         st.session_state.selected_movie = None
     if 'surprise_clicked' not in st.session_state:
         st.session_state.surprise_clicked = False
+
+    # --- Handle query param for clickable cards ---
+    query_params = st.experimental_get_query_params()
+    if "movie" in query_params:
+        try:
+            movie_name = query_params["movie"][0]
+            # Check if it's a new movie from a click
+            if movie_name and st.session_state.selected_movie != movie_name:
+                st.session_state.selected_movie = movie_name
+                st.session_state.surprise_clicked = False
+                # Clear query params and rerun
+                st.experimental_set_query_params()
+                st.experimental_rerun()
+        except Exception:
+            st.experimental_set_query_params() # Clear bad params
+            pass # Fail silently if query param is bad
+
 
     try:
         movies, similarity, all_genres = load_data()
@@ -362,17 +384,17 @@ def main():
     with st.sidebar:
         st.header("Filters")
         selected_genres = st.multiselect("Filter by Genres", options=all_genres)
-        min_rating = st.slider("Minimum Rating", 0.0, 10.0, 0.0, 0.1)
+        # min_rating = st.slider("Minimum Rating", 0.0, 10.0, 0.0, 0.1) # Removed
         st.write("---")
-        st.info("Tip: Pick a genre and rating, then press 'Surprise Me!' to get a random pick matching your filters.")
+        st.info("Tip: Pick a genre, then press 'Surprise Me!' to get a random pick matching your filters.") # Updated text
 
     def filter_movies(df):
         """Filters the main dataframe based on sidebar controls."""
         out = df.copy()
         if selected_genres:
             out = out[out['genres'].apply(lambda gl: any(g in gl for g in selected_genres))]
-        if min_rating > 0:
-            out = out[out['vote_average'] >= min_rating]
+        # if min_rating > 0: # Removed
+        #     out = out[out['vote_average'] >= min_rating] # Removed
         return out
 
     filtered_df = filter_movies(movies)
@@ -448,7 +470,7 @@ def main():
         if not names:
             st.error("No recommendations found — try another movie.")
         else:
-            st.markdown("#### Top 10 recommendations (8 similar + 2 opposites)")
+            st.markdown("#### Top 10 recommendations") # Removed (8 similar + 2 opposites)
             
             # Create 2 rows of 5 columns
             cols_row1 = st.columns(5)
@@ -472,6 +494,7 @@ def main():
                 rating_str = f"{ratings[i]:.1f}"
                 wildcard_html = '<span class="tag" style="background:#7c3aed">Wildcard</span>' if is_wildcard else ""
                 
+                # Original card HTML
                 card_html = f"""
                 <div class="movie-card">
                     <div class="movie-rating">⭐ {rating_str}</div>
@@ -482,8 +505,16 @@ def main():
                 </div>
                 """
                 
+                # Wrap card in a link (<a> tag) to make it clickable
+                name_encoded = urllib.parse.quote_plus(name)
+                card_html_with_link = f"""
+                <a href="?movie={name_encoded}" target="_self">
+                    {card_html}
+                </a>
+                """
+                
                 with col:
-                    st.markdown(card_html, unsafe_allow_html=True)
+                    st.markdown(card_html_with_link, unsafe_allow_html=True)
     
     else:
         st.info("Select a movie or use the 'Surprise Me!' button to get recommendations.")
