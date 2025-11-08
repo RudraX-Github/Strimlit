@@ -32,10 +32,10 @@ def format_name(name_string):
     """Formats 'CamelCase' to 'Camel Case'."""
     if isinstance(name_string, str):
         return re.sub(r'([a-z])([A-Z])', r'\1 \2', name_string)
-def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix) -> Tuple[List[str], List[str], List[str], List[float], List[List[str]], List[str]]:
-    """Gets top 10 recommendations (8 similar, 2 opposite)."""
-    if movies_df is None or similarity_matrix is None:
-        return [], [], [], [], [], []
+
+# --- [FIXED] Removed broken recommend_top10 function and added correct fetch_poster ---
+def fetch_poster(movie_id: int) -> str:
+    """Fetches a movie poster URL from the TMDB API."""
     try:
         if movie_id is None or movie_id == -1:
             raise ValueError("Invalid movie id")
