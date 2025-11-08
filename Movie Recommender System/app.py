@@ -205,7 +205,7 @@ h4 {color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--prim
 
 /* Sidebar glassmorphism */
 [data-testid="stSidebar"] > div:first-child {
-    background: rgba(255, 255, 255, 0.03); /* More transparent */
+    background: rgba(255, 255, 255, 0.01); /* More transparent (was 0.03) */
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-right: 1px solid var(--card-border);
@@ -535,6 +535,7 @@ def main():
                 # Show only poster, title, and genres as requested
                 card_html = f"""
                 <div class="movie-card">
+                    <div class="movie-rating">⭐ {ratings[i]:.1f}</div>
                     <img src="{posters[i]}" alt="{name}">
                     <div class="movie-title">{name}</div>
                     <div class="tag-container" style="margin-top: auto;">{genre_tags} {wildcard_html}</div>
@@ -554,10 +555,12 @@ def main():
     
     else:
         # --- [NEW] Movie Gallery View (No movie selected) ---
-        if st.session_state.f_genres:
-            st.markdown(f"#### Movie Gallery (Filtered by Genre)")
-        else:
-            st.markdown(f"#### Movie Gallery (All Movies)")
+        st.markdown(f"#### Movie Gallery")
+
+        # if st.session_state.f_genres:
+        #     st.markdown(f"#### Movie Gallery (Filtered by Genre)")
+        # else:
+        #     st.markdown(f"#### Movie Gallery (All Movies)")
 
         if filtered_df.empty:
             st.warning("No movies match your selected genre filters.")
@@ -566,7 +569,7 @@ def main():
             # Paginate to show the first 50 movies
             gallery_movies = filtered_df.head(50) 
             
-            st.info(f"Showing the first {len(gallery_movies)} of {total_movies} matching movies. Select a movie to get recommendations.")
+            # st.info(f"Showing the first {len(gallery_movies)} of {total_movies} matching movies. Select a movie to get recommendations.")
             
             # Fetch posters for the gallery
             gallery_movie_ids = gallery_movies['movie_id'].tolist()
