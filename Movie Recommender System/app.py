@@ -210,6 +210,10 @@ h4 {color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--prim
     -webkit-backdrop-filter: none !important;
     border-right: none !important;
 }
+/* NEW: Hide the sidebar header/chrome */
+[data-testid="stSidebarHeader"] {
+    display: none !important;
+}
 /* Make sidebar text readable */
 [data-testid="stSidebar"] {
     color: var(--text);
