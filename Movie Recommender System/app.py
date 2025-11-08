@@ -1,5 +1,5 @@
 # app.py
-# CineMatch — Streamlit Movie Recommender (single-file, updated: top10 + rating formatting + HTML fixes)
+# CineMatch — Streamlit Movie Recommender (fixed HTML rendering)
 # Requirements: streamlit, pandas, requests
 # Run: pip install streamlit pandas requests && streamlit run app.py
 
@@ -10,9 +10,11 @@ import pickle
 import re
 import random
 import concurrent.futures
+import math
 from typing import Tuple, List
+import streamlit.components.v1 as components
 
-# --- Configuration (from your prompt) ---
+# --- Configuration ---
 API_READ_ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzYmQzMGMxZmQ1YTkwNzdkODNlZGU1NDRiNzE5MGEzMCIsIm5iZiI6MTc2MjE1MjU2NS4wODcwMDAxLCJzdWIiOiI2OTA4NTA3NTMxZTQzNThmNDEwODE4MzUiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.npzY38JNcrTkUKFDZ41XiZs_CmZsSls3oU63vo8gIIo"
 HEADERS = {"accept": "application/json", "Authorization": f"Bearer {API_READ_ACCESS_TOKEN}"}
 
@@ -25,14 +27,13 @@ PICKLE_SIM_URL = (
     "Movie%20Recommender%20System/pickle%20files/similarity.pkl"
 )
 
-# --- Utility helpers ---
+# --- Helpers ---
 def format_name(name_string):
     if isinstance(name_string, str):
         return re.sub(r'([a-z])([A-Z])', r'\1 \2', name_string)
     return name_string
 
 def fetch_poster(movie_id: int) -> str:
-    """Fetch poster path from TMDB; fallback to placeholder."""
     try:
         if movie_id is None or movie_id == -1:
             raise ValueError("Invalid movie id")
@@ -52,15 +53,9 @@ def fetch_poster(movie_id: int) -> str:
         pass
     return "https://via.placeholder.com/500x750.png?text=Poster+Not+Available"
 
-# --- Data loader (cached) ---
+# --- Data loader ---
 @st.cache_data
 def load_data() -> Tuple[pd.DataFrame, object, List[str]]:
-    """
-    Downloads and processes the pickles from GitHub.
-    Expects the movies_dict.pkl to be a dict convertible to a DataFrame with columns:
-      ['movie_id','title','overview','genres','vote_average','cast','crew', ...]
-    similarity.pkl should be a 2D array-like similarity matrix.
-    """
     try:
         r1 = requests.get(PICKLE_MOVIES_URL, timeout=20)
         r1.raise_for_status()
@@ -111,12 +106,8 @@ def load_data() -> Tuple[pd.DataFrame, object, List[str]]:
     except Exception as e:
         raise RuntimeError(f"Error loading data: {e}") from e
 
-# --- Recommendation: top 8 similar + 2 opposites (total 10) ---
+# --- Recommendation ---
 def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix) -> Tuple[List[str], List[str], List[str], List[float], List[List[str]]]:
-    """
-    Returns top 10: first 8 most similar (highest score) then 2 most dissimilar (lowest score).
-    Robust if there are fewer movies than 10.
-    """
     if movies_df is None or similarity_matrix is None:
         return [], [], [], [], []
     try:
@@ -125,19 +116,14 @@ def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix
             return [], [], [], [], []
         idx = int(idxs[0])
         row = similarity_matrix[idx]
-        n_movies = len(row)
 
         enumerated = list(enumerate(row))
-        # exclude the same item
         enumerated = [e for e in enumerated if e[0] != idx]
 
-        # sort descending for most similar
         most_similar = sorted(enumerated, key=lambda x: x[1], reverse=True)
-        top_sim = most_similar[:8]  # may be shorter if not enough movies
+        top_sim = most_similar[:8]
 
-        # sort ascending to get most dissimilar
         least_similar = sorted(enumerated, key=lambda x: x[1])
-        # ensure dissimilar picks are not already in top_sim (by index), pick up to 2
         top_sim_idxs = {i for i, _ in top_sim}
         opposites = []
         for i, s in least_similar:
@@ -148,7 +134,7 @@ def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix
 
         picks = top_sim + opposites
 
-        # if still fewer than 10 (small dataset), fill with next-best unique items
+        # fill to 10 if needed
         picked_idxs = {i for i, _ in picks}
         if len(picks) < 10:
             for i, s in most_similar:
@@ -158,7 +144,6 @@ def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix
                 if len(picks) >= 10:
                     break
 
-        # build return lists
         movie_ids, names, overviews, ratings, genres_lists = [], [], [], [], []
         for i, score in picks:
             r = movies_df.iloc[int(i)]
@@ -168,14 +153,12 @@ def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix
             if isinstance(ov, list):
                 ov = " ".join([str(x) for x in ov])
             overviews.append(str(ov))
-            # ensure rating is float and normalized to single decimal
             try:
                 ratings.append(float(r.get('vote_average', 0.0)))
             except Exception:
                 ratings.append(0.0)
             genres_lists.append(r.get('genres', []) or [])
 
-        # fetch posters in parallel
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
             posters = list(ex.map(fetch_poster, movie_ids))
 
@@ -183,7 +166,7 @@ def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix
     except Exception:
         return [], [], [], [], []
 
-# --- CSS / page styling ---
+# --- CSS ---
 PAGE_CSS = """<style>
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
 :root{
@@ -272,26 +255,27 @@ def main():
                 st.error("No recommendations found — try another movie.")
             else:
                 st.markdown("#### Top 10 recommendations (8 similar + 2 opposites)")
+
+                # build HTML
                 cards_html = '<div class="movie-grid">'
                 for i, name in enumerate(names):
-                    # determine if this item is a wildcard (opposite) - we placed opposites at positions 8 and 9
                     is_wildcard = (i >= 8)
-                    # build genre badges (limit to 4)
-                    genre_tags = ""
+                    # genre spans with space between them
                     if genres_lists[i]:
-                        for g in (genres_lists[i] or [])[:4]:
-                            genre_tags += f'<span class="tag">{g}</span>'
+                        genre_tags = "".join(f'<span class="tag">{g}</span>' for g in (genres_lists[i]) )
+                        small_muted = ", ".join(genres_lists[i])
                     else:
-                        genre_tags = '<span class="small-muted">No genres</span>'
-                    # rating formatted with 1 decimal
+                        genre_tags = ''
+                        small_muted = "Unknown"
+
                     rating_str = f"{ratings[i]:.1f}"
                     wildcard_html = '<span class="tag" style="background:#7c3aed">Wildcard</span>' if is_wildcard else ""
-                    # small-muted summary (comma-separated genres)
-                    small_muted = ", ".join(genres_lists[i] or []) or "Unknown"
+                    poster = posters[i] or "https://via.placeholder.com/500x750.png?text=Poster+Not+Available"
+                    # add loading=lazy and alt text, safe-escape name is not necessary for trusted data
                     card = f"""
                       <div class="movie-card">
                         <div class="movie-rating">⭐ {rating_str}</div>
-                        <img src="{posters[i]}" alt="{name}" style="width:100%; border-radius:7px;">
+                        <img loading="lazy" src="{poster}" alt="{name}" style="width:100%; border-radius:7px;">
                         <div class="movie-title">{name}</div>
                         <div class="small-muted">{small_muted}</div>
                         <div style="margin-top:8px">{genre_tags} {wildcard_html}</div>
@@ -299,7 +283,15 @@ def main():
                     """
                     cards_html += card
                 cards_html += "</div>"
-                st.write(cards_html, unsafe_allow_html=True)
+
+                # compute a reasonable height: rows = ceil(n / cols) ; assume cols ~ 4 for wide screens
+                cols_count = 4
+                rows = math.ceil(len(names) / cols_count)
+                row_height = 360  # px approximate per card height
+                total_height = max(400, rows * row_height)
+
+                # render with components.html for consistent behavior
+                components.html(cards_html, height=total_height, scrolling=True)
 
     st.markdown('<div class="app-footer">This app demos a content-based recommender (8 similar + 2 opposite picks). Replace dataset or TMDB hooks for production.</div>', unsafe_allow_html=True)
 
