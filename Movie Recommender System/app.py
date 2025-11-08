@@ -112,7 +112,7 @@ def load_data() -> Tuple[pd.DataFrame, object, List[str]]:
         raise RuntimeError(f"Error loading data: {e}") from e
 
 # --- Recommendation ---
-def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix) -> Tuple[List[str], List[str], List[str], List[float], List[List[str]]]:
+def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix) -> Tuple[List[str], List[str], List[float], List[List[str]]]:
     """Gets top 10 recommendations (8 similar, 2 opposite)."""
     if movies_df is None or similarity_matrix is None:
         return [], [], [], [], []
@@ -153,31 +153,26 @@ def recommend_top10(movie_title: str, movies_df: pd.DataFrame, similarity_matrix
                 if len(picks) >= 10:
                     break
 
-        movie_ids, names, overviews, ratings, genres_lists, directors = [], [], [], [], [], []
+        movie_ids, names, ratings, genres_lists = [], [], [], []
         for i, score in picks:
             r = movies_df.iloc[int(i)]
             movie_ids.append(int(r.get('movie_id', -1)))
             names.append(r.get('title', 'Unknown'))
-            
-            ov = r.get('overview') or ""
-            ov = " ".join([str(x) for x in ov]) if isinstance(ov, list) else str(ov)
-            overviews.append(ov)
             
             try:
                 ratings.append(float(r.get('vote_average', 0.0)))
             except Exception:
                 ratings.append(0.0)
             genres_lists.append(r.get('genres', []) or [])
-            directors.append(r.get('director', 'N/A') or 'N/A') # Add director
 
         # Fetch posters in parallel
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
             posters = list(ex.map(fetch_poster, movie_ids))
 
-        return names, posters, overviews, ratings, genres_lists, directors
+        return names, posters, ratings, genres_lists
     except Exception as e:
         st.error(f"Error getting recommendations: {e}")
-        return [], [], [], [], [], []
+        return [], [], [], []
 
 # --- CSS (Glassmorphism) ---
 PAGE_CSS = """<style>
@@ -208,7 +203,20 @@ h1 {color:var(--primary); text-align:center; font-weight: 700;}
 h3 {color: var(--text); font-weight: 600;}
 h4 {color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--primary); padding-bottom: 5px; margin-top: 24px;}
 
-/* Sidebar glassmorphism - [REMOVED] - No longer needed */
+/* Sidebar glassmorphism */
+[data-testid="stSidebar"] > div:first-child {
+    background: rgba(255, 255, 255, 0.03); /* More transparent */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-right: 1px solid var(--card-border);
+}
+/* Make sidebar text readable */
+[data-testid="stSidebar"] {
+    color: var(--text);
+}
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] label, [data-testid="stSidebar"] .st-emotion-cache-16txtl3 {
+    color: var(--text) !important;
+}
 
 /* Selected movie container glassmorphism */
 .selected-movie-container {
@@ -295,19 +303,6 @@ h4 {color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--prim
   display: block;
   line-height: 1.4;
   font-weight: 400;
-}
-/* New classes for richer card */
-.movie-overview {
-    color: var(--muted);
-    font-size: 12px;
-    line-height: 1.5;
-    margin-bottom: 10px;
-    font-weight: 400;
-    /* Line clamp to 3 lines */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
 }
 .movie-director {
     color: var(--text);
@@ -510,7 +505,7 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True) # Close the glassmorphism div
 
         # --- RECOMMENDATIONS (No Button) ---
-        names, posters, overviews, ratings, genres_lists, directors = recommend_top10(selected, movies, similarity)
+        names, posters, ratings, genres_lists = recommend_top10(selected, movies, similarity)
         
         if not names:
             st.error("No recommendations found — try another movie.")
@@ -530,26 +525,19 @@ def main():
                 is_wildcard = (i >= 8)
                 if genres_lists[i]:
                     # Limit display for space
-                    small_muted = ", ".join(genres_lists[i][:3]) + ("..." if len(genres_lists[i]) > 3 else "")
                     genre_tags = "".join(f'<span class="tag">{g}</span>' for g in (genres_lists[i][:2]) )
                 else:
                     genre_tags = ''
-                    small_muted = "Unknown"
 
-                rating_str = f"{ratings[i]:.1f}"
                 wildcard_html = '<span class="tag" style="background:#7c3aed">Wildcard</span>' if is_wildcard else ""
                 
-                # --- Updated Card HTML ---
-                # Added overview and director, inspired by CineMatch.html
+                # --- [SIMPLIFIED] Card HTML ---
+                # Show only poster, title, and genres as requested
                 card_html = f"""
                 <div class="movie-card">
-                    <div class="movie-rating">⭐ {rating_str}</div>
                     <img src="{posters[i]}" alt="{name}">
                     <div class="movie-title">{name}</div>
-                    <div class="movie-overview">{overviews[i]}</div>
-                    <div class="movie-director">Director: {directors[i]}</div>
-                    <div class="small-muted">{small_muted}</div>
-                    <div class="tag-container">{genre_tags} {wildcard_html}</div>
+                    <div class="tag-container" style="margin-top: auto;">{genre_tags} {wildcard_html}</div>
                 </div>
                 """
                 
@@ -565,7 +553,44 @@ def main():
                     st.markdown(card_html_with_link, unsafe_allow_html=True)
     
     else:
-        st.info("Select a movie or use the 'Surprise Me!' button to get recommendations.")
+        # --- [NEW] Movie Gallery View (No movie selected) ---
+        if st.session_state.f_genres:
+            st.markdown(f"#### Movie Gallery (Filtered by Genre)")
+        else:
+            st.markdown(f"#### Movie Gallery (All Movies)")
+
+        if filtered_df.empty:
+            st.warning("No movies match your selected genre filters.")
+        else:
+            total_movies = len(filtered_df)
+            # Paginate to show the first 50 movies
+            gallery_movies = filtered_df.head(50) 
+            
+            st.info(f"Showing the first {len(gallery_movies)} of {total_movies} matching movies. Select a movie to get recommendations.")
+            
+            # Fetch posters for the gallery
+            gallery_movie_ids = gallery_movies['movie_id'].tolist()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
+                gallery_posters = list(ex.map(fetch_poster, gallery_movie_ids))
+
+            # Create a 5-column grid for the gallery
+            num_cols = 5
+            cols = st.columns(num_cols)
+            
+            for i, (row, poster_url) in enumerate(zip(gallery_movies.itertuples(), gallery_posters)):
+                col = cols[i % num_cols]
+                with col:
+                    # Use a simplified card for the gallery
+                    name_encoded = urllib.parse.quote_plus(row.title)
+                    card_html = f"""
+                    <a href="?movie={name_encoded}" target="_self">
+                        <div class="movie-card">
+                            <img src="{poster_url}" alt="{row.title}" style="margin-bottom: 8px;">
+                            <div class="movie-title" style="font-size: 13px; text-align: center; margin-top: 0; line-height: 1.2;">{row.title}</div>
+                        </div>
+                    </a>
+                    """
+                    st.markdown(card_html, unsafe_allow_html=True)
 
     st.markdown('<div class="app-footer">CineMatch Recommender | Built with Streamlit & TMDB</div>', unsafe_allow_html=True)
 
