@@ -1,16 +1,21 @@
+# app.py
+# CineMatch — Streamlit Movie Recommender (single-file)
+# Requirements: streamlit, pandas, requests, pickle5 (or built-in pickle), concurrent.futures
+# Run: pip install streamlit pandas requests && streamlit run app.py
+
 import streamlit as st
-import pickle
 import pandas as pd
 import requests
+import pickle
+import re
 import random
 import concurrent.futures
-from typing import List, Tuple
+from typing import Tuple, List
 
-# --- Configuration ---
+# --- 1. Configuration (from your prompt) ---
 API_READ_ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzYmQzMGMxZmQ1YTkwNzdkODNlZGU1NDRiNzE5MGEzMCIsIm5iZiI6MTc2MjE1MjU2NS4wODcwMDAxLCJzdWIiOiI2OTA4NTA3NTMxZTQzNThmNDEwODE4MzUiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.npzY38JNcrTkUKFDZ41XiZs_CmZsSls3oU63vo8gIIo"
 HEADERS = {"accept": "application/json", "Authorization": f"Bearer {API_READ_ACCESS_TOKEN}"}
 
-# --- FIX 1: Corrected URLs ---
 PICKLE_MOVIES_URL = (
     "https://github.com/RudraX-Github/Strimlit/raw/refs/heads/main/"
     "Movie%20Recommender%20System/pickle%20files/movies_dict.pkl"
@@ -20,388 +25,252 @@ PICKLE_SIM_URL = (
     "Movie%20Recommender%20System/pickle%20files/similarity.pkl"
 )
 
-# --- Styling (CineMatch WOW Edition) ---
-def inject_css():
-    st.markdown(
-        """
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        :root { 
-            --accent:#E50914; 
-            --accent2:#ff6b6b; 
-            --grad: linear-gradient(90deg, var(--accent), var(--accent2));
-        }
-        html, body, .stApp {
-            background: radial-gradient(900px 600px at 10% 10%, rgba(229,9,20,0.06), transparent),
-                        linear-gradient(180deg, #050505, #0b0b0b);
-            color: #fff;
-            font-family: 'Inter', sans-serif;
-        }
-        
-        /* --- FIX 8: Illusive & Colorful Title --- */
-        .cine-title {
-            text-align: center;
-            font-size: 3rem;
-            font-weight: 800;
-            /* Animated Gradient Text */
-            background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent));
-            background-size: 200% auto;
-            color: transparent;
-            background-clip: text;
-            -webkit-background-clip: text;
-            animation: glow 3s infinite, gradient-flow 6s infinite ease-in-out;
-        }
-        @keyframes glow {
-            0%, 100% { text-shadow: 0 0 8px var(--accent); }
-            50% { text-shadow: 0 0 24px var(--accent2); }
-        }
-        @keyframes gradient-flow {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        /* --- End Fix 8 --- */
+# --- 2. Utility helpers ---
+def format_name(name_string):
+    if isinstance(name_string, str):
+        return re.sub(r'([a-z])([A-Z])', r'\1 \2', name_string)
+    return name_string
 
-        .cine-sub {
-            text-align: center;
-            color: #ccc;
-            margin-bottom: 30px;
-        }
-        .movie-card {
-            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-            border: 1px solid rgba(255,255,255,0.04);
-            border-radius: 12px;
-            padding: 8px;
-            transition: transform 0.25s, box-shadow 0.25s;
-        }
-        .movie-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.6);
-        }
-        .poster {
-            width: 100%;
-            height: 260px;
-            object-fit: cover;
-            border-radius: 8px;
-        }
-        .movie-title {
-            font-weight: 700;
-            margin-top: 8px;
-            font-size: 0.95rem;
-            min-height: 2.8em; /* Consistent height */
-            line-height: 1.4em;
-        }
-        .rating {
-            background: var(--accent);
-            padding: 6px 8px;
-            border-radius: 8px;
-            color: #fff;
-            font-weight: 700;
-            display: inline-block;
-            margin-top: 6px;
-            font-size: 0.9rem; /* Added for consistency */
-        }
-        .loader-wrap { display:flex; justify-content:center; padding:18px; }
-        .loader-ball {
-            width: 22px; height: 22px; border-radius: 50%;
-            background: var(--grad);
-            animation: bounce 0.8s infinite;
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-18px); }
-        }
-        .rec-card { animation: fadeIn 0.4s ease both; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: none; }
-        }
-
-        /* --- NEW: Custom Floating Modal --- */
-        /* This is the full-screen overlay */
-        .modal-overlay {
-            position: fixed; /* Floats above all content */
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7); /* Dark background */
-            backdrop-filter: blur(8px); /* Blurs the content behind it */
-            -webkit-backdrop-filter: blur(8px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000; /* Sits on top */
-            animation: fadeIn 0.2s ease; /* Fades in */
-        }
-        
-        /* This is the modal content box */
-        .details-panel {
-            background: rgba(30,30,30,0.9);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-            width: 90%;
-            max-width: 700px; /* Max width of the modal */
-            max-height: 90vh; /* Max height */
-            overflow-y: auto; /* Lets the content scroll if needed */
-        }
-        /* --- End NEW --- */
-
-        button[kind="primary"] {
-            background: var(--grad) !important;
-            border: none !important;
-            color: #fff !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-# --- Data loading ---
-@st.cache_data(show_spinner=False)
-def load_data() -> Tuple[pd.DataFrame, List[List[float]], List[str]]:
-    r = requests.get(PICKLE_MOVIES_URL, timeout=10)
-    movies_dict = pickle.loads(r.content)
-    movies = pd.DataFrame(movies_dict)
-    r2 = requests.get(PICKLE_SIM_URL, timeout=10)
-    similarity = pickle.loads(r2.content)
-
-    movies['overview'] = movies['overview'].apply(lambda o: o or [])
-    movies['cast'] = movies['cast'].apply(lambda c: c or [])
-    movies['cast_display'] = movies['cast'].apply(lambda c: ', '.join(c) if isinstance(c, list) else str(c))
-    movies['genres'] = movies['genres'].apply(lambda g: g or [])
-    all_genres = sorted({g for genre_list in movies['genres'] for g in (gl or [])})
-    return movies, similarity, all_genres
-
-# --- Poster fetch ---
+# Safe poster fetch (TMDB)
 def fetch_poster(movie_id: int) -> str:
-    # --- FIX 1: Corrected URL ---
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}/images"
+    """Uses the provided API token to fetch poster path from TMDB; falls back to placeholder."""
     try:
-        res = requests.get(url, headers=HEADERS, timeout=6)
-        res.raise_for_status()
-        data = res.json()
+        url = f"https://api.themoviedb.org/3/movie/{movie_id}/images"
+        resp = requests.get(url, headers=HEADERS, timeout=6)
+        resp.raise_for_status()
+        data = resp.json()
         if data.get("posters"):
-            fp = data["posters"][0].get("file_path")
-            if fp:
-                # --- FIX 1: Corrected URL ---
-                return f"https://image.tmdb.org/t/p/w500{fp}"
+            file_path = data["posters"][0].get("file_path")
+            if file_path:
+                return f"https://image.tmdb.org/t/p/w500{file_path}"
     except Exception:
         pass
-    # --- FIX 1: Corrected URL ---
-    return "https://via.placeholder.com/300x450.png?text=No+Poster"
+    return "https://via.placeholder.com/500x750.png?text=Poster+Not+Available"
 
-# --- Recommend ---
-def recommend(title: str, movies: pd.DataFrame, similarity):
-    matches = movies[movies["title"] == title]
-    if matches.empty:
-        return [], [], [], []
-    idx = matches.index[0]
-    distances = similarity[idx]
-    
-    # --- FIX 7: Get top 8 + 2 wildcards ---
-    sorted_indices = sorted(list(enumerate(distances)), key=lambda x: x[1], reverse=True)
-    top_8_indices = sorted_indices[1:9]  # 8 most similar
-    bottom_2_indices = sorted_indices[-2:] # 2 least similar
-    indices = top_8_indices + bottom_2_indices
-    
-    ids = [movies.iloc[i[0]].movie_id for i in indices]
-    names = [movies.iloc[i[0]].title for i in indices]
-    ratings = [movies.iloc[i[0]].vote_average for i in indices]
-    overviews = [movies.iloc[i[0]].overview for i in indices]
-    with concurrent.futures.ThreadPoolExecutor() as ex:
-        posters = list(ex.map(fetch_poster, ids))
-    return names, posters, ratings, overviews
+def similarity_score(a_tags: List[str], b_tags: List[str]) -> float:
+    """Jaccard-like normalized overlap for tag lists (content-based)."""
+    a = set([t.lower() for t in (a_tags or [])])
+    b = set([t.lower() for t in (b_tags or [])])
+    if not a and not b:
+        return 0.0
+    inter = len(a & b)
+    union = len(a | b)
+    return inter / union if union else 0.0
 
-# --- Button Handlers (FIX 5) ---
-def handle_popup_create(title: str):
-    st.session_state["popup_title"] = title
-
-def handle_popup_close():
-    if "popup_title" in st.session_state:
-        del st.session_state["popup_title"]
-
-def handle_recommend_click(title: str):
-    st.session_state["compute_recs_for"] = title
-    handle_popup_close() # Close popup when recs are shown
-
-def handle_view_rec_click(title: str):
-    # "View" button on recs will also open the popup
-    st.session_state["popup_title"] = title 
-
-# --- Main App ---
-def main():
-    st.set_page_config(page_title="CineMatch", page_icon="🎬", layout="wide")
-    inject_css()
-
+# --- 3. Data loader (cached) ---
+@st.cache_data
+def load_data() -> Tuple[pd.DataFrame, object, List[str]]:
+    """
+    Downloads and processes the pickles from GitHub.
+    Expects the movies_dict.pkl to be a dict convertible to a DataFrame with columns:
+      ['movie_id','title','overview','genres','vote_average','cast','crew', ...]
+    similarity.pkl should be a 2D array-like similarity matrix.
+    """
     try:
-        movies, similarity, all_genres = load_data()
+        r1 = requests.get(PICKLE_MOVIES_URL, timeout=15)
+        r1.raise_for_status()
+        movies_dict = pickle.loads(r1.content)
+        movies = pd.DataFrame(movies_dict)
+
+        # Required columns guard
+        required_cols = ['movie_id', 'title', 'overview', 'genres', 'vote_average', 'cast', 'crew']
+        if not all(c in movies.columns for c in required_cols):
+            raise RuntimeError(f"movies_dict.pkl missing required columns: {required_cols}")
+
+        # Normalize director/cast fields
+        def extract_director(crew):
+            if isinstance(crew, list) and crew:
+                return format_name(crew[0])
+            return "N/A"
+
+        movies['director'] = movies['crew'].apply(extract_director)
+        movies['cast'] = movies['cast'].apply(lambda x: [format_name(n) for n in x] if isinstance(x, list) else [])
+        # ensure genres is list
+        movies['genres'] = movies['genres'].apply(lambda g: g if isinstance(g, list) else [])
+
+        # genres list
+        all_genres = sorted({g for sub in movies['genres'] for g in sub} if not movies['genres'].isnull().all() else [])
+
+        r2 = requests.get(PICKLE_SIM_URL, timeout=15)
+        r2.raise_for_status()
+        similarity = pickle.loads(r2.content)
+
+        return movies, similarity, all_genres
     except Exception as e:
-        st.error(f"Failed to load movie data. Please check connection/URLs. Error: {e}")
+        st.error(f"Error loading data: {e}")
         st.stop()
+        return pd.DataFrame(), None, []
 
+# --- 4. Recommendation function ---
+def recommend(movie_title: str, movies_df: pd.DataFrame, similarity_matrix) -> Tuple[List[str], List[str], List[str], List[float], List[List[str]]]:
+    """
+    Returns (names, posters, overviews, ratings, genres) for top 8 similar + 2 least-similar (wildcards).
+    This function expects `similarity_matrix` to be index-aligned with movies_df.
+    """
+    if movies_df is None or similarity_matrix is None:
+        return [], [], [], [], []
+    try:
+        idxs = movies_df[movies_df['title'] == movie_title].index
+        if len(idxs) == 0:
+            return [], [], [], [], []
+        idx = idxs[0]
+        row = similarity_matrix[idx]
+        # row can be list-like of similarity scores
+        enumerated = sorted(list(enumerate(row)), key=lambda x: x[1], reverse=True)
+        # exclude the same movie
+        enumerated = [e for e in enumerated if e[0] != idx]
+        top8 = enumerated[:8]
+        bottom2 = sorted(enumerated[-2:], key=lambda x: x[1])  # least similar
+        picks = top8 + bottom2
 
-    st.markdown("<div class_name='cine-title'>🎬 CineMatch</div><div class_name='cine-sub'>Find your next favorite movie by title, cast, or genre</div>", unsafe_allow_html=True)
+        movie_ids, names, overviews, ratings, genres_lists = [], [], [], [], []
+        for i, score in picks:
+            r = movies_df.iloc[i]
+            movie_ids.append(int(r.get('movie_id', -1)))
+            names.append(r.get('title', 'Unknown'))
+            overviews.append(r.get('overview') if isinstance(r.get('overview'), list) else [str(r.get('overview') or "")])
+            ratings.append(float(r.get('vote_average', 0.0)))
+            genres_lists.append(r.get('genres', []))
 
-    # --- DELETED: Details Panel Container ---
-    # We no longer render the details in the main page flow.
+        # parallel fetch posters
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
+            posters = list(ex.map(fetch_poster, movie_ids))
 
-    # Search & genre filters
-    query = st.text_input("🔎 Search by title / cast / keyword")
-    selected_genres = st.multiselect("🎭 Filter genres", options=all_genres)
+        return names, posters, overviews, ratings, genres_lists
+    except Exception as e:
+        st.error(f"Recommendation error: {e}")
+        return [], [], [], [], []
 
-    # Combine filters
-    df = movies
-    if query:
-        q = query.strip().lower()
-        mask = (
-            df["title"].str.lower().str.contains(q)
-            | df["cast_display"].str.lower().str.contains(q)
-            | df["overview"].apply(lambda o: " ".join(o).lower()).str.contains(q)
-        )
-        df = df[mask]
-    if selected_genres:
-        df = df[df["genres"].apply(lambda gl: any(g in (gl or []) for g in selected_genres))]
+# --- 5. Small helper UI code for styling (inspired by uploaded demo) ---
+PAGE_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+:root{
+  --bg:#0f0f10;
+  --card:#181818;
+  --border:#333333;
+  --primary:#E50914;
+  --muted:#9CA3AF;
+  --text:#F3F4F6;
+}
+html,body,.stApp{background:var(--bg); color:var(--text); font-family:Montserrat,system-ui,Arial;}
+#MainMenu, footer {visibility: hidden;}
+h1 {color:var(--primary); text-align:center;}
+.movie-grid {display:grid; grid-template-columns: repeat(auto-fill,minmax(220px,1fr)); gap:18px;}
+.movie-card {background:var(--card); border:1px solid var(--border); padding:10px; border-radius:10px; transition: transform .18s ease, box-shadow .18s ease; position:relative; overflow:hidden;}
+.movie-card:hover {transform: translateY(-6px) scale(1.01); box-shadow: 0 18px 40px rgba(0,0,0,0.6); border-color:var(--primary);}
+.movie-title {font-weight:700; margin-top:8px; color:var(--text);}
+.movie-rating {position:absolute; left:10px; top:10px; background:#00000088; padding:6px 9px; border-radius:10px; font-weight:700;}
+.tag {background:var(--primary); color:#fff; padding:4px 8px; border-radius:999px; margin-right:6px; font-size:12px;}
+.small-muted {color:var(--muted); font-size:13px;}
+.app-footer {text-align:center; color:var(--muted); margin-top:24px; border-top:1px solid var(--border); padding-top:12px;}
+</style>
+"""
 
-    st.markdown(f"**Showing {len(df)} results**")
+# --- 6. App UI ---
+def main():
+    st.set_page_config(page_title="CineMatch Recommender", page_icon="🎬", layout="wide")
+    st.markdown(PAGE_CSS, unsafe_allow_html=True)
 
-    # --- DELETED: Populate Details Panel ---
-    # This logic is moved to the end of the `main` function.
+    movies, similarity, all_genres = load_data()
 
-    # Grid display
-    cols = st.columns(4)
-    ids = df["movie_id"].tolist()[:48]
-    posters = []
-    with concurrent.futures.ThreadPoolExecutor() as ex:
-        posters = list(ex.map(fetch_poster, ids))
+    st.title("CineMatch — Movie Recommender")
+    # Sidebar filters
+    with st.sidebar:
+        st.header("Filters")
+        selected_genres = st.multiselect("Genres", options=all_genres)
+        min_rating = st.slider("Minimum rating", 0.0, 10.0, 0.0, 0.1)
+        st.write("---")
+        st.write("Tip: pick a genre and press Surprise Me!")
 
-    for i, (_, row) in enumerate(df.head(48).iterrows()):
-        col = cols[i % 4]
-        with col:
-            poster = posters[i]
-            
-            # --- FIX 2 & 3: Card is now a container with a button ---
-            with st.container():
-                # Card is just a static markdown box
-                st.markdown(
-                    # --- FIX 1: Corrected HTML typo (class='poster') ---
-                    # --- FIX: Added rating to main grid card ---
-                    f"<div class='movie-card'>"
-                    f"<img class='poster' src='{poster}' />"
-                    f"<div class='movie-title'>{row.title}</div>"
-                    f"<span class='rating'>⭐ {round(row.vote_average, 1)}</span>"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-                # This button triggers the popup
-                st.button(
-                    "Details", 
-                    key=f"detail_{row.movie_id}", 
-                    on_click=handle_popup_create, 
-                    args=(row.title,),
-                    use_container_width=True
-                )
-            # --- FIX 2: Removed old rating and buttons ---
-            st.write("") # Adds a little space
+    # Filter movies DataFrame
+    def filter_movies(df):
+        out = df.copy()
+        if selected_genres:
+            out = out[out['genres'].apply(lambda gl: any(g in gl for g in selected_genres))]
+        if min_rating > 0:
+            out = out[out['vote_average'] >= min_rating]
+        return out
 
-    # Compute recs with loader
-    if st.session_state.get("compute_recs_for"):
-        title = st.session_state["compute_recs_for"]
-        loader = st.empty()
-        loader.markdown("<div class='loader-wrap'><div class='loader-ball'></div></div>", unsafe_allow_html=True)
-        names, posters_r, ratings_r, _ = recommend(title, movies, similarity)
-        st.session_state["cur_recs"] = {"names": names, "posters": posters_r, "ratings": ratings_r}
-        del st.session_state["compute_recs_for"]
-        loader.empty()
+    filtered_df = filter_movies(movies)
+    titles = sorted(filtered_df['title'].tolist())
 
-    # Recommendations display
-    if st.session_state.get("cur_recs"):
-        recs = st.session_state["cur_recs"]
-        st.markdown("---")
-        st.subheader("✨ Recommendations")
-        st.info("Showing Top 8 Similar and 2 'Wildcard' (Least Similar) Picks")
-        cols = st.columns(5) # Changed to 5 columns
-        
-        # Display all 10 recommendations
-        for i in range(len(recs["names"])):
-            with cols[i % 5]:
-                st.markdown(
-                    f"""
-                    <div class='rec-card'>
-                        <img src='{recs['posters'][i]}' width='100%' 
-                             style='border-radius:8px; object-fit: cover; height: 240px;'/>
-                        <div style='font-weight:700;margin-top:8px'>{recs['names'][i]}</div>
-                        <div>⭐ {round(recs['ratings'][i], 1)}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-                # "View" button now opens the popup for the rec
-                st.button("View", key=f"view_{i}", on_click=handle_view_rec_click, args=(recs["names"][i],), use_container_width=True)
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        selected = st.selectbox("Pick a movie (or type to search):", [""] + titles, index=0)
+    with col2:
+        if st.button("🎲 Surprise Me!"):
+            if titles:
+                selected = random.choice(titles)
+                st.experimental_set_query_params(movie=selected)
+                st.success(f"Surprised! Showing: {selected}")
+            else:
+                st.warning("No movies available for the current filters.")
+                selected = None
 
-    # --- NEW: Custom Floating Modal Logic ---
-    # This is now at the END of the main function.
-    # If "popup_title" is set, it will render this *on top* of everything above.
-    if "popup_title" in st.session_state:
-        title = st.session_state.get("popup_title")
-        
-        if movies[movies["title"] == title].empty:
-            handle_popup_close()
-            st.rerun()
+    if selected:
+        st.markdown(f"### Selected: {selected}")
+        details = get_movie_details_safe(movies, selected)
+        if details:
+            cols = st.columns([1, 2])
+            with cols[0]:
+                st.image(details['poster_url'], use_column_width=True, caption=f"{details['title']} — {details['rating']:.1f}")
+            with cols[1]:
+                st.markdown(f"**Genres:** " + ", ".join(details['genres']))
+                st.markdown(f"**Director:** {details['director']}")
+                st.markdown("**Cast:** " + ", ".join(details['cast'][:6]))
+                st.markdown("---")
+                st.markdown("**Overview**")
+                st.write(" ".join(details['overview']) if isinstance(details['overview'], list) else details['overview'])
 
-        row = movies[movies["title"] == title].iloc[0]
+        # recommendations
+        if st.button("Show Recommendations"):
+            with st.spinner("Computing recommendations..."):
+                names, posters, overviews, ratings, genres_lists = recommend(selected, movies, similarity)
+                if not names:
+                    st.error("No recommendations found — try another movie.")
+                else:
+                    st.markdown("#### Top recommendations")
+                    # grid of cards
+                    cards_html = '<div class="movie-grid">'
+                    for i, name in enumerate(names):
+                        # mark wildcard positions 8 & 9 (if present)
+                        wildcard_tag = ""
+                        if i >= 8:
+                            wildcard_tag = '<div class="tag" style="background:#7c3aed">Wildcard</div>'
+                        genre_str = " ".join(f'<span class="tag">{g}</span>' for g in (genres_lists[i] or [])[:3])
+                        card = f"""
+                          <div class="movie-card">
+                            <div class="movie-rating">⭐ {ratings[i]:.1f}</div>
+                            <img src="{posters[i]}" alt="{name}" style="width:100%; border-radius:7px;">
+                            <div class="movie-title">{name}</div>
+                            <div class="small-muted">{', '.join(genres_lists[i] or [])}</div>
+                            <div style="margin-top:8px">{genre_str} {wildcard_tag}</div>
+                          </div>
+                        """
+                        cards_html += card
+                    cards_html += "</div>"
+                    st.write(cards_html, unsafe_allow_html=True)
 
-        # We inject the HTML for the overlay and the panel.
-        # This is a bit of a hack: we open tags in one st.markdown call,
-        # render Streamlit components, then close tags in another call.
-        st.markdown(
-            """
-            <div class="modal-overlay">
-                <div class="details-panel">
-            """, 
-            unsafe_allow_html=True
-        )
-        
-        # --- Render all the modal content using Streamlit components ---
-        st.subheader(f"{row.title}")
-        
-        c1, c2 = st.columns([1, 2])
-        with c1:
-            st.image(fetch_poster(row.movie_id), use_container_width=True)
-        with c2:
-            st.markdown(f"<span class='rating'>⭐ {round(row.vote_average, 1)}</span>", unsafe_allow_html=True)
-            st.markdown("**Overview**")
-            st.write(" ".join(row.overview))
-            st.markdown("**Cast**")
-            st.write(row.cast_display)
+    st.markdown('<div class="app-footer">This app demos a content-based recommender (tag overlap + rating). Replace dataset or TMDB hooks for production.</div>', unsafe_allow_html=True)
 
-        st.markdown("---")
-        b1, b2 = st.columns([3, 1])
-        with b1:
-            # This "Close" button works by deleting the session state
-            # and re-running the script, so this whole block is skipped.
-            st.button("Close", on_click=handle_popup_close, use_container_width=True)
-        with b2:
-            # This "Recommend" button does the same, but also sets
-            # the state for the recommendations to be computed.
-            st.button(
-                "✨ Recommend", 
-                on_click=handle_recommend_click, 
-                args=(row.title,), 
-                use_container_width=True,
-                type="primary"
-            )
-        
-        # --- Close the HTML tags ---
-        st.markdown(
-            """
-                </div> <!-- details-panel -->
-            </div> <!-- modal-overlay -->
-            """, 
-            unsafe_allow_html=True
-        )
+# small helper to safely get movie details -> returns dict or None
+def get_movie_details_safe(movies_df: pd.DataFrame, title: str):
+    try:
+        row = movies_df[movies_df['title'] == title].iloc[0]
+        poster = fetch_poster(int(row.get('movie_id', -1)))
+        return {
+            "id": int(row.get('movie_id', -1)),
+            "title": row.get('title', 'N/A'),
+            "overview": row.get('overview', []),
+            "genres": row.get('genres', []),
+            "rating": float(row.get('vote_average', 0.0)),
+            "poster_url": poster,
+            "cast": row.get('cast', []),
+            "director": row.get('director', 'N/A')
+        }
+    except Exception:
+        return None
 
 if __name__ == "__main__":
     main()
