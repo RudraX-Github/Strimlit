@@ -225,6 +225,19 @@ h4 {color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--prim
     color: var(--text) !important;
 }
 
+/* NEW: Make sidebar widgets transparent */
+[data-testid="stSidebar"] [data-baseweb="select"] > div,
+[data-testid="stSidebar"] .stButton button {
+    background: var(--card-bg) !important; /* Use glass background */
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid var(--card-border) !important;
+}
+[data-testid="stSidebar"] .stButton button:hover {
+    border-color: var(--primary) !important;
+    color: var(--primary) !important;
+}
+
 /* Selected movie container glassmorphism */
 .selected-movie-container {
     background: var(--card-bg);
@@ -254,6 +267,7 @@ h4 {color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--prim
   height: 100%; /* Make card fill column height */
   display: flex;
   flex-direction: column;
+  margin-bottom: 20px; /* NEW: Add vertical space between cards */
 }
 .movie-card:hover {
   transform: translateY(-6px);
@@ -431,9 +445,15 @@ def main():
         # 1. Filter by search query (title or cast) - [REMOVED]
         # The selectbox handles searching dynamically
 
-        # 2. Filter by genres
+        # 2. Filter by genres (CHANGED TO "AND" LOGIC)
         if genres:
-            out = out[out['genres'].apply(lambda gl: any(g in gl for g in genres))]
+            # Previous "OR" logic:
+            # out = out[out['genres'].apply(lambda gl: any(g in gl for g in genres))]
+            
+            # NEW "AND" logic:
+            # Check if all selected genres are a subset of the movie's genres
+            genre_set = set(genres)
+            out = out[out['genres'].apply(lambda gl: genre_set.issubset(set(gl)))]
         
         # 3. Filter by rating - [REMOVED]
         return out
