@@ -205,14 +205,17 @@ h4 {color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--prim
 
 /* Sidebar glassmorphism */
 [data-testid="stSidebar"] > div:first-child {
-    background: rgba(255, 255, 255, 0.01); /* More transparent (was 0.03) */
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-right: 1px solid var(--card-border);
+    background: transparent !important; /* Fully transparent */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-right: none !important;
 }
 /* Make sidebar text readable */
 [data-testid="stSidebar"] {
     color: var(--text);
+    width: 16rem !important; /* Make sidebar narrower */
+    min-width: 16rem !important;
+    max-width: 16rem !important;
 }
 [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] label, [data-testid="stSidebar"] .st-emotion-cache-16txtl3 {
     color: var(--text) !important;
@@ -583,13 +586,22 @@ def main():
             for i, (row, poster_url) in enumerate(zip(gallery_movies.itertuples(), gallery_posters)):
                 col = cols[i % num_cols]
                 with col:
+                    # --- [NEW] Gallery Card Details ---
+                    gallery_genres = row.genres or []
+                    # Make tags smaller for the gallery
+                    genre_tags = "".join(f'<span class="tag" style="font-size: 10px; padding: 3px 6px;">{g}</span>' for g in gallery_genres[:2])
+                    # Make rating smaller for the gallery
+                    rating_html = f'<div class="movie-rating" style="font-size: 12px; padding: 4px 7px;">⭐ {row.vote_average:.1f}</div>'
+                    
                     # Use a simplified card for the gallery
                     name_encoded = urllib.parse.quote_plus(row.title)
                     card_html = f"""
                     <a href="?movie={name_encoded}" target="_self">
                         <div class="movie-card">
+                            {rating_html}
                             <img src="{poster_url}" alt="{row.title}" style="margin-bottom: 8px;">
                             <div class="movie-title" style="font-size: 13px; text-align: center; margin-top: 0; line-height: 1.2;">{row.title}</div>
+                            <div class="tag-container" style="margin-top: auto; text-align: center;">{genre_tags}</div>
                         </div>
                     </a>
                     """
