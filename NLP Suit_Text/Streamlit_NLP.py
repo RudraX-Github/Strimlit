@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 NLP Application Suite PRO - Streamlit Web App Edition v2.6 (Ultimate Edition)
+(Patched for Streamlit Cloud 1GB RAM Limit)
 """
 
 import os
@@ -211,6 +212,11 @@ def get_corpus_context(corpus, num_sentences=3):
 
 @st.cache_resource
 def load_nlp_pipeline(model_name, task):
+    """
+    Loads a single NLP pipeline and caches it.
+    This is now called on-demand (when a button is clicked)
+    to save memory on Streamlit Cloud.
+    """
     try:
         return pipeline(task, model=model_name)
     except Exception as e:
@@ -218,36 +224,11 @@ def load_nlp_pipeline(model_name, task):
         return None
 
 # --- UI Functions ---
-def load_pipelines_with_progress(next_word_model):
-    pipelines_to_load = {
-        "Sentiment": ("distilbert-base-uncased-finetuned-sst-2-english", "sentiment-analysis"),
-        "Emotion": ("j-hartmann/emotion-english-distilroberta-base", "text-classification"),
-        "Summarization": ("google/pegasus-xsum", "summarization"),
-        "Text Generation": (next_word_model, "text-generation"),
-    }
-    
-    total_pipelines = len(pipelines_to_load)
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    start_time = time.time()
-    
-    loaded_pipelines = {}
-    
-    for i, (name, (model, task)) in enumerate(pipelines_to_load.items()):
-        elapsed = time.time() - start_time
-        avg_time_per_pipe = elapsed / i if i > 0 else 8 # A more realistic estimate
-        eta = avg_time_per_pipe * (total_pipelines - i)
-        
-        status_text.text(f"Loading {name} model... (ETA: {int(eta)}s)")
-        loaded_pipelines[task] = load_nlp_pipeline(model, task)
-        progress_bar.progress((i + 1) / total_pipelines)
-
-    status_text.success("All models loaded successfully!")
-    time.sleep(1.5)
-    status_text.empty()
-    progress_bar.empty()
-    return loaded_pipelines
-
+#
+# DELETED 'load_pipelines_with_progress' function.
+# It was loading all models at once and crashing the app
+# due to the 1GB RAM limit on Streamlit Cloud.
+#
 # --- Streamlit UI ---
 
 # Initialize session state
@@ -407,6 +388,8 @@ elif st.session_state.app_stage == "pro_model_selection":
 elif st.session_state.app_stage == "analysis":
     st.title("Text Analysis")
     
+    # This state dictionary is still useful if you want to
+    # store models after they are loaded once.
     if 'pipelines' not in st.session_state:
         st.session_state.pipelines = {}
 
@@ -437,17 +420,16 @@ elif st.session_state.app_stage == "analysis":
             st.balloons()
             time.sleep(2)
         
-        next_word_model = st.session_state.fine_tuned_model_path
+        # Set the model name, but don't load it yet
+        next_word_model = st.session_state.fine_tuned_model_path if st.session_state.fine_tuned_model_path else "distilgpt2"
     else:
         next_word_model = "distilgpt2"
         
-    if not st.session_state.pipelines:
-        st.session_state.pipelines = load_pipelines_with_progress(next_word_model)
-
-    sentiment_pipe = st.session_state.pipelines.get("sentiment-analysis")
-    emotion_pipe = st.session_state.pipelines.get("text-classification")
-    summarization_pipe = st.session_state.pipelines.get("summarization")
-    next_word_pipe = st.session_state.pipelines.get("text-generation")
+    #
+    # --- CHANGE: REMOVED MODEL LOADING BLOCK ---
+    # We no longer load all models here.
+    # They will be loaded on-demand inside the "Analyze" button logic.
+    #
     
     st.header("Choose an action and enter your text")
     
@@ -463,45 +445,70 @@ elif st.session_state.app_stage == "analysis":
             st.warning("Please enter some text to analyze.")
         else:
             with st.spinner("Analyzing..."):
-                if "Predict Next Word" in action and next_word_pipe:
+                
+                # --- CHANGE: 'Predict Next Word' Logic ---
+                if "Predict Next Word" in action:
                     st.subheader("Next Word Prediction")
                     
-                    if st.session_state.suite_mode == "PRO" and st.session_state.processed_corpus:
-                        context = get_corpus_context(st.session_state.processed_corpus)
-                        prompt = f"{context} {text_input}"
-                        st.info(f"Using context from your corpus to improve prediction...")
-                    else:
-                        prompt = text_input
+                    # Load model on-demand
+                    next_word_pipe = load_nlp_pipeline(next_word_model, "text-generation")
+                    
+                    if next_word_pipe:
+                        if st.session_state.suite_mode == "PRO" and st.session_state.processed_corpus:
+                            context = get_corpus_context(st.session_state.processed_corpus)
+                            prompt = f"{context} {text_input}"
+                            st.info(f"Using context from your corpus to improve prediction...")
+                        else:
+                            prompt = text_input
 
-                    st.markdown("---")
-                    for i, length in enumerate([3, 5, 7], 1):
-                        result = next_word_pipe(prompt, max_new_tokens=length, num_return_sequences=1)[0]['generated_text']
-                        prediction = result[len(prompt):].strip()
-                        st.markdown(f"**Probable Output {i} ({length} words):**")
-                        st.success(prediction)
+                        st.markdown("---")
+                        for i, length in enumerate([3, 5, 7], 1):
+                            result = next_word_pipe(prompt, max_new_tokens=length, num_return_sequences=1)[0]['generated_text']
+                            prediction = result[len(prompt):].strip()
+                            st.markdown(f"**Probable Output {i} ({length} words):**")
+                            st.success(prediction)
 
-                elif "Analyze Sentiment" in action and sentiment_pipe:
+                # --- CHANGE: 'Analyze Sentiment' Logic ---
+                elif "Analyze Sentiment" in action:
                     st.subheader("Sentiment Analysis")
-                    result = sentiment_pipe(text_input)[0]
-                    sentiment_emojis = {"POSITIVE": "😊", "NEGATIVE": "😞", "NEUTRAL": "😐"}
-                    emoji_icon = sentiment_emojis.get(result['label'], "")
-                    st.write(f"**Sentiment:** {result['label']} {emoji_icon} ({result['score']:.2f})")
+                    
+                    # Load model on-demand
+                    sentiment_pipe = load_nlp_pipeline("distilbert-base-uncased-finetuned-sst-2-english", "sentiment-analysis")
+                    
+                    if sentiment_pipe:
+                        result = sentiment_pipe(text_input)[0]
+                        sentiment_emojis = {"POSITIVE": "😊", "NEGATIVE": "😞", "NEUTRAL": "😐"}
+                        emoji_icon = sentiment_emojis.get(result['label'], "")
+                        st.write(f"**Sentiment:** {result['label']} {emoji_icon} ({result['score']:.2f})")
 
-                elif "Detect Emotion" in action and emotion_pipe:
+                # --- CHANGE: 'Detect Emotion' Logic ---
+                elif "Detect Emotion" in action:
                     st.subheader("Emotion Detection")
-                    result = emotion_pipe(text_input)[0]
-                    emotion_emojis = {"joy": "😂", "sadness": "😢", "anger": "😠", "fear": "😨", "love": "❤️", "surprise": "😮"}
-                    emoji_icon = emotion_emojis.get(result['label'], "")
-                    st.write(f"**Emotion:** {result['label']} {emoji_icon} ({result['score']:.2f})")
+                    
+                    # Load model on-demand
+                    emotion_pipe = load_nlp_pipeline("j-hartmann/emotion-english-distilroberta-base", "text-classification")
+
+                    if emotion_pipe:
+                        result = emotion_pipe(text_input)[0]
+                        emotion_emojis = {"joy": "😂", "sadness": "😢", "anger": "😠", "fear": "😨", "love": "❤️", "surprise": "😮"}
+                        emoji_icon = emotion_emojis.get(result['label'], "")
+                        st.write(f"**Emotion:** {result['label']} {emoji_icon} ({result['score']:.2f})")
                 
-                elif "Summarize Long Text" in action and summarization_pipe:
+                # --- CHANGE: 'Summarize Long Text' Logic ---
+                elif "Summarize Long Text" in action:
                     if len(text_input.split()) <= 30:
                         st.warning("Summarization works best on texts longer than 30 words.")
                     else:
                         st.subheader("Summarization")
-                        result = summarization_pipe(text_input, min_length=30, do_sample=False)[0]['summary_text']
-                        st.write(result)
+                        
+                        # Load model on-demand
+                        summarization_pipe = load_nlp_pipeline("google/pegasus-xsum", "summarization")
+                        
+                        if summarization_pipe:
+                            result = summarization_pipe(text_input, min_length=30, do_sample=False)[0]['summary_text']
+                            st.write(result)
                 
+                # --- NO CHANGE: 'Create Word Cloud' Logic ---
                 elif "Create Word Cloud" in action:
                     st.subheader("Sentiment Word Cloud")
                     try:
@@ -523,4 +530,3 @@ elif st.session_state.app_stage == "analysis":
                         )
                     except Exception as e:
                         st.error(f"Could not generate word cloud: {e}")
-
