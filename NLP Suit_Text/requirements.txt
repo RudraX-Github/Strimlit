@@ -1,0 +1,14 @@
+streamlit
+pandas
+Pillow
+pytesseract
+beautifulsoup4
+torch
+matplotlib
+wordcloud
+emoji
+nltk
+pyspellchecker
+textblob
+transformers
+datasets
