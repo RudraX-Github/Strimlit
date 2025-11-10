@@ -502,7 +502,7 @@ elif st.session_state.app_stage == "analysis":
                         st.subheader("Summarization")
                         
                         # Load model on-demand
-                        summarization_pipe = load_nlp_pipeline("google/pegasus-xsum", "summarization")
+                        summarization_pipe = load_nlp_pipeline("sshleifer/distilbart-cnn-12-6", "summarization")
                         
                         if summarization_pipe:
                             result = summarization_pipe(text_input, min_length=30, do_sample=False)[0]['summary_text']
